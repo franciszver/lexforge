@@ -38,6 +38,8 @@ describe('Page Components', () => {
         expect(screen.getByText(/LexForge \/\/ Draft/i)).toBeInTheDocument();
         // Check for AI trigger button
         expect(screen.getByTitle(/Generate Suggestions/i)).toBeInTheDocument();
+        // Check for Export button
+        expect(screen.getByTitle(/Export to Word/i)).toBeInTheDocument();
     });
 
     it('renders Admin correctly', () => {

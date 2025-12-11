@@ -1,10 +1,10 @@
-import { IntakeData } from '../types';
+import type { IntakeData } from '../types';
 
 export const generateDraft = (intake: IntakeData): string => {
-    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    if (intake.docType === 'Demand Letter') {
-        return `
+  if (intake.docType === 'Demand Letter') {
+    return `
       <p style="text-align: right;">${date}</p>
       <p style="text-align: right;"><strong>VIA CERTIFIED MAIL</strong></p>
       <br>
@@ -20,10 +20,10 @@ export const generateDraft = (intake: IntakeData): string => {
       <p>[Attorney Name]</p>
       <p>LexForge Law, LLP</p>
     `;
-    }
+  }
 
-    // Placeholder for other types
-    return `
+  // Placeholder for other types
+  return `
     <h1>${intake.docType}</h1>
     <p>Jurisdiction: ${intake.jurisdiction}</p>
     <p>Practice Area: ${intake.practiceArea}</p>

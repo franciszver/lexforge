@@ -1,12 +1,14 @@
-import React from 'react';
+
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { toggleSidebar, setContent, setSaving, setLastSaved, setSuggestions } from '../features/editorSlice';
-import { SidebarIcon, Search, Settings, Sparkles } from 'lucide-react';
+import { SidebarIcon, Search, Settings, Sparkles, Download } from 'lucide-react';
 import classNames from 'classnames';
 import { SuggestionCard } from '../components/SuggestionCard';
+import HTMLtoDOCX from 'html-to-docx';
+import { saveAs } from 'file-saver';
 
 
 export const Editor = () => {
@@ -51,6 +53,23 @@ export const Editor = () => {
         } catch (error) {
             console.error('RAG Error:', error);
             dispatch(setSaving(false));
+        }
+    };
+
+    const handleExport = async () => {
+        if (!content) return;
+
+        try {
+            const fileBuffer = await HTMLtoDOCX(content, null, {
+                table: { row: { cantSplit: true } },
+                footer: true,
+                pageNumber: true,
+            });
+            const blob = new Blob([fileBuffer], { type: 'application/octet-stream' });
+            saveAs(blob, `LexForge_Draft_${new Date().toISOString().split('T')[0]}.docx`);
+        } catch (error) {
+            console.error('Export Error:', error);
+            alert('Failed to export document.');
         }
     };
 
@@ -104,6 +123,13 @@ export const Editor = () => {
                             title="Generate Suggestions"
                         >
                             <Sparkles size={20} />
+                        </button>
+                        <button
+                            onClick={handleExport}
+                            className="p-2 rounded hover:bg-[var(--bg-surface-hover)]"
+                            title="Export to Word"
+                        >
+                            <Download size={20} />
                         </button>
                         <button className="p-2 rounded hover:bg-[var(--bg-surface-hover)]">
                             <Search size={20} />
