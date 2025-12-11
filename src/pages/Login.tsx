@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { signIn, signUp } from 'aws-amplify/auth';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { signIn, signUp, getCurrentUser } from 'aws-amplify/auth';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppDispatch } from '../store';
+import { setAuthenticated } from '../features/authSlice';
+import { FileText } from 'lucide-react';
 
 /**
  * Login Page
@@ -10,12 +13,37 @@ import { useNavigate } from 'react-router-dom';
  */
 export const Login: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const dispatch = useAppDispatch();
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
     const [error, setError] = useState('');
+
+    // Check if already authenticated
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const user = await getCurrentUser();
+                if (user) {
+                    dispatch(setAuthenticated({
+                        email: user.signInDetails?.loginId || user.username,
+                        userId: user.userId,
+                    }));
+                    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+                    navigate(from, { replace: true });
+                }
+            } catch {
+                // Not authenticated, stay on login page
+            } finally {
+                setCheckingAuth(false);
+            }
+        };
+        checkAuth();
+    }, [dispatch, navigate, location]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,24 +68,44 @@ export const Login: React.FC = () => {
                 });
                 setError('Please check your email for verification code');
             } else {
-                await signIn({
+                const result = await signIn({
                     username: email,
                     password,
                 });
-                navigate('/');
+                if (result.isSignedIn) {
+                    const user = await getCurrentUser();
+                    dispatch(setAuthenticated({
+                        email: user.signInDetails?.loginId || user.username,
+                        userId: user.userId,
+                    }));
+                    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+                    navigate(from, { replace: true });
+                }
             }
-        } catch (err: any) {
-            setError(err.message || 'Authentication failed');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Authentication failed';
+            setError(message);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>) => 
+    const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>) =>
         (e: React.ChangeEvent<HTMLInputElement>) => {
             setter(e.target.value);
             if (error) setError('');
         };
+
+    if (checkingAuth) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="spinner w-8 h-8 text-primary-600 mx-auto mb-4" />
+                    <p className="text-slate-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-primary-900 to-slate-900 flex items-center justify-center p-4">
@@ -75,19 +123,7 @@ export const Login: React.FC = () => {
                 {/* Logo and title */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-500 rounded-2xl mb-4 shadow-lg">
-                        <svg
-                            className="w-8 h-8 text-white"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                        </svg>
+                        <FileText className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold text-white mb-2">LexForge</h1>
                     <p className="text-primary-200">
@@ -102,19 +138,18 @@ export const Login: React.FC = () => {
                             {isSignUp ? 'Create Account' : 'Welcome Back'}
                         </h2>
                         <p className="text-slate-500 text-sm mt-1">
-                            {isSignUp 
-                                ? 'Sign up to start drafting legal documents' 
+                            {isSignUp
+                                ? 'Sign up to start drafting legal documents'
                                 : 'Enter your credentials to continue'
                             }
                         </p>
                     </div>
 
                     {error && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm ${
-                            error.includes('check your email') 
-                                ? 'bg-success-50 text-success-600' 
-                                : 'bg-danger-50 text-danger-600'
-                        }`}>
+                        <div className={`mb-4 p-3 rounded-lg text-sm ${error.includes('check your email')
+                                ? 'bg-green-50 text-green-600'
+                                : 'bg-red-50 text-red-600'
+                            }`}>
                             {error}
                         </div>
                     )}
