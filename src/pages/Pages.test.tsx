@@ -36,6 +36,8 @@ describe('Page Components', () => {
         renderWithProviders(<Editor />);
         // Editor header says "LexForge // Draft"
         expect(screen.getByText(/LexForge \/\/ Draft/i)).toBeInTheDocument();
+        // Check for AI trigger button
+        expect(screen.getByTitle(/Generate Suggestions/i)).toBeInTheDocument();
     });
 
     it('renders Admin correctly', () => {

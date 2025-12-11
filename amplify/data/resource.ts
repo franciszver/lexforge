@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { generateSuggestion } from '../functions/generate-suggestion/resource';
 
 const schema = a.schema({
   Draft: a.model({
@@ -31,6 +32,16 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.owner(),
     ]),
+
+  // Custom Query to call Lambda
+  askAI: a.query()
+    .arguments({
+      text: a.string(),
+      context: a.json(),
+    })
+    .returns(a.json())
+    .handler(a.handler.function(generateSuggestion))
+    .authorization((allow) => [allow.authenticated()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;

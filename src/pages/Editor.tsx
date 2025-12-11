@@ -3,13 +3,56 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
-import { toggleSidebar, setContent, setSaving, setLastSaved } from '../features/editorSlice';
-import { SidebarIcon, Search, Settings } from 'lucide-react';
+import { toggleSidebar, setContent, setSaving, setLastSaved, setSuggestions } from '../features/editorSlice';
+import { SidebarIcon, Search, Settings, Sparkles } from 'lucide-react';
 import classNames from 'classnames';
+import { SuggestionCard } from '../components/SuggestionCard';
+
 
 export const Editor = () => {
     const dispatch = useDispatch();
-    const { content, isSidebarOpen, isSaving, lastSavedAt } = useSelector((state: RootState) => state.editor);
+    const { content, isSidebarOpen, isSaving, lastSavedAt, suggestions } = useSelector((state: RootState) => state.editor);
+
+    // Initialize Data Client
+    // const client = generateClient<Schema>();
+
+    const triggerAI = async () => {
+        dispatch(setSaving(true));
+
+        try {
+            // REAL CALL (Commented out until backend is deployed)
+            // const { data: result } = await client.queries.askAI({
+            //   text: editor?.getText() || '',
+            //   context: JSON.stringify({ jurisdiction: 'California' }) 
+            // });
+            // if (result) dispatch(setSuggestions(JSON.parse(result as string)));
+
+            // MOCK FALLBACK
+            setTimeout(() => {
+                dispatch(setSuggestions([
+                    {
+                        id: '1',
+                        type: 'tone',
+                        text: 'This language is highly aggressive and may alienate the opposing counsel.',
+                        replacementText: 'We kindly request prompt payment...',
+                        confidence: 0.9,
+                    },
+                    {
+                        id: '2',
+                        type: 'source',
+                        text: 'Cited statute Cal. Civil Code § 1798 is applicable here.',
+                        source: 'https://leginfo.legislature.ca.gov/',
+                        confidence: 0.95,
+                    }
+                ]));
+                dispatch(setSaving(false));
+            }, 1500);
+
+        } catch (error) {
+            console.error('RAG Error:', error);
+            dispatch(setSaving(false));
+        }
+    };
 
     const editor = useEditor({
         extensions: [StarterKit],
@@ -55,6 +98,13 @@ export const Editor = () => {
                         >
                             <SidebarIcon size={20} />
                         </button>
+                        <button
+                            onClick={triggerAI}
+                            className="p-2 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--primary-brand)]"
+                            title="Generate Suggestions"
+                        >
+                            <Sparkles size={20} />
+                        </button>
                         <button className="p-2 rounded hover:bg-[var(--bg-surface-hover)]">
                             <Search size={20} />
                         </button>
@@ -85,31 +135,23 @@ export const Editor = () => {
                 </div>
 
                 <div className="flex-1 p-4 overflow-y-auto">
-                    {/* Skeleton for Suggestions */}
-                    <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-strong)]">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="w-2 h-2 rounded-full bg-[var(--status-warning)]"></span>
-                                <span className="text-xs font-bold text-[var(--status-warning)]">TONE CHECK</span>
-                            </div>
-                            <p className="text-sm text-[var(--text-secondary)] mb-2">This paragraph sounds aggressive. Consider softening the demand to encourage settlement.</p>
-                            <button className="text-xs text-[var(--primary-brand)] font-medium hover:underline">Apply suggestion</button>
+                    {suggestions.length === 0 ? (
+                        <div className="mt-8 text-center text-[var(--text-tertiary)] text-xs">
+                            <p>No suggestions yet.</p>
+                            <p>Highlight text or keep typing to activate LexForge AI.</p>
                         </div>
-
-                        <div className="p-4 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-strong)]">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="w-2 h-2 rounded-full bg-[var(--status-success)]"></span>
-                                <span className="text-xs font-bold text-[var(--status-success)]">CITATION FOUND</span>
-                            </div>
-                            <p className="text-sm text-[var(--text-secondary)] mb-2">Relevant case law found for "Breach of Contract" in California.</p>
-                            <button className="text-xs text-[var(--primary-brand)] font-medium hover:underline">View Source</button>
+                    ) : (
+                        <div className="space-y-4">
+                            {suggestions.map((s) => (
+                                <SuggestionCard
+                                    key={s.id}
+                                    suggestion={s}
+                                    onAccept={(id) => console.log('Accept', id)}
+                                    onDismiss={(id) => console.log('Dismiss', id)}
+                                />
+                            ))}
                         </div>
-                    </div>
-
-                    <div className="mt-8 text-center text-[var(--text-tertiary)] text-xs">
-                        <p>Highlight text to see specific suggestions.</p>
-                    </div>
-                </div>
+                    )}          </div>
             </div>
         </div>
     );
