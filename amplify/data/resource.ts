@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { generateSuggestion } from '../functions/generate-suggestion/resource';
 
+
 const schema = a.schema({
   Draft: a.model({
     userId: a.string().required(), // Explicit reference or rely on owner

@@ -1,7 +1,13 @@
 import { useState } from 'react';
-import { Users, FileText, Plus, Trash2, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-// Mock Data (until backend connected)
+/**
+ * Admin Console
+ * Manage templates, users, and system configuration.
+ * Styled to match DraftWise theming.
+ */
+
+// Mock Data
 const initialTemplates = [
     { id: '1', name: 'Standard Demand Letter', category: 'Demand Letter', content: '<p>Dear Sir/Madam...</p>' },
     { id: '2', name: 'NY Settlement Agreement', category: 'Settlement', content: '<p>This Settlement Agreement...</p>' },
@@ -13,9 +19,10 @@ const initialUsers = [
 ];
 
 export const Admin = () => {
-    const [activeTab, setActiveTab] = useState<'templates' | 'users'>('templates');
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'templates' | 'users' | 'settings'>('templates');
     const [templates, setTemplates] = useState(initialTemplates);
-
+    const [saving, setSaving] = useState(false);
 
     const handleDeleteTemplate = (id: string) => {
         if (confirm('Are you sure you want to delete this template?')) {
@@ -24,115 +31,177 @@ export const Admin = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[var(--bg-app)] flex">
-            {/* Sidebar Nav */}
-            <aside className="w-64 bg-[var(--bg-surface)] border-r border-[var(--border-strong)] p-6 flex flex-col">
-                <h1 className="text-xl font-serif font-bold mb-8 flex items-center gap-2">
-                    LexForge <span className="text-[var(--primary-brand)] text-xs font-sans uppercase tracking-widest mt-1">Admin</span>
-                </h1>
-
-                <nav className="space-y-2 flex-1">
-                    <button
-                        onClick={() => setActiveTab('templates')}
-                        className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'templates'
-                            ? 'bg-[var(--bg-surface-hover)] text-[var(--primary-brand)] font-medium'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
-                            }`}
-                    >
-                        <FileText size={18} /> Templates
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('users')}
-                        className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'users'
-                            ? 'bg-[var(--bg-surface-hover)] text-[var(--primary-brand)] font-medium'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
-                            }`}
-                    >
-                        <Users size={18} /> User Management
-                    </button>
-                </nav>
-
-                <div className="text-xs text-[var(--text-tertiary)]">v0.1.0 Alpha</div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 p-8 overflow-y-auto">
-                <header className="flex justify-between items-center mb-8">
-                    <h2 className="text-2xl font-bold">
-                        {activeTab === 'templates' ? 'Template Management' : 'User Directory'}
-                    </h2>
-                    {activeTab === 'templates' && (
-                        <button className="px-4 py-2 bg-[var(--primary-brand)] hover:bg-[var(--primary-brand-hover)] text-white rounded-lg flex items-center gap-2 text-sm font-medium">
-                            <Plus size={16} /> New Template
+        <div className="min-h-screen bg-slate-50">
+            {/* Header */}
+            <header className="bg-white border-b border-slate-200 px-6 py-4">
+                <div className="flex items-center justify-between max-w-6xl mx-auto">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate('/')}
+                            className="btn-ghost"
+                        >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Back to Dashboard
                         </button>
-                    )}
-                </header>
-
-                {activeTab === 'templates' && (
-                    <div className="bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl overflow-hidden glass-panel">
-                        <table className="w-full text-left">
-                            <thead className="bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th className="p-4 font-medium">Template Name</th>
-                                    <th className="p-4 font-medium">Category</th>
-                                    <th className="p-4 font-medium text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-subtle)]">
-                                {templates.map((t) => (
-                                    <tr key={t.id} className="hover:bg-[var(--bg-surface-hover)] transition-colors">
-                                        <td className="p-4 font-medium">{t.name}</td>
-                                        <td className="p-4 text-[var(--text-secondary)]">
-                                            <span className="px-2 py-1 rounded bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs">
-                                                {t.category}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 flex justify-end gap-2">
-                                            <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--primary-brand)] rounded hover:bg-[var(--bg-app)]">
-                                                <Edit size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteTemplate(t.id)}
-                                                className="p-2 text-[var(--text-secondary)] hover:text-[var(--status-error)] rounded hover:bg-[var(--bg-app)]"
-                                                aria-label="Delete Template"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <h1 className="text-xl font-semibold text-slate-900">Admin Console</h1>
                     </div>
-                )}
+                </div>
+            </header>
 
-                {activeTab === 'users' && (
-                    <div className="bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl overflow-hidden glass-panel">
-                        <table className="w-full text-left">
-                            <thead className="bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th className="p-4 font-medium">Email</th>
-                                    <th className="p-4 font-medium">Role</th>
-                                    <th className="p-4 font-medium">Last Active</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-subtle)]">
-                                {initialUsers.map((u) => (
-                                    <tr key={u.id} className="hover:bg-[var(--bg-surface-hover)] transition-colors">
-                                        <td className="p-4 font-medium">{u.email}</td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${u.role === 'Admin' ? 'bg-purple-900 text-purple-200' : 'bg-gray-800 text-gray-300'
-                                                }`}>
-                                                {u.role}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-[var(--text-tertiary)] text-sm">{u.lastActive}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            {/* Content */}
+            <main className="max-w-6xl mx-auto p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Templates Card */}
+                    <div className="card p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-slate-900">Templates</h2>
+                            <button className="btn-primary btn-sm">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                New Template
+                            </button>
+                        </div>
+
+                        <div className="space-y-2">
+                            {templates.map((t) => (
+                                <div
+                                    key={t.id}
+                                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                                >
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900">{t.name}</p>
+                                        <p className="text-xs text-slate-500">{t.category}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-white rounded">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteTemplate(t.id)}
+                                            className="p-1.5 text-slate-400 hover:text-danger-600 hover:bg-white rounded"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                )}
+
+                    {/* Users Card */}
+                    <div className="card p-6">
+                        <h2 className="text-lg font-semibold text-slate-900 mb-4">Users</h2>
+
+                        <div className="space-y-2">
+                            {initialUsers.map((u) => (
+                                <div
+                                    key={u.id}
+                                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                                >
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900">{u.email}</p>
+                                        <p className="text-xs text-slate-500">Last active: {u.lastActive}</p>
+                                    </div>
+                                    <span className={`badge ${u.role === 'Admin' ? 'badge-primary' : 'badge-slate'}`}>
+                                        {u.role}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Statistics Card */}
+                    <div className="card p-6">
+                        <h2 className="text-lg font-semibold text-slate-900 mb-4">Usage Statistics</h2>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-sm text-slate-500">Total Documents</p>
+                                <p className="text-2xl font-bold text-slate-900">0</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-sm text-slate-500">Active Users</p>
+                                <p className="text-2xl font-bold text-slate-900">2</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-sm text-slate-500">Templates</p>
+                                <p className="text-2xl font-bold text-slate-900">{templates.length}</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-sm text-slate-500">AI Requests</p>
+                                <p className="text-2xl font-bold text-slate-900">0</p>
+                                <p className="text-xs text-slate-400">this month</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* AI Configuration Card */}
+                    <div className="card p-6">
+                        <h2 className="text-lg font-semibold text-slate-900 mb-4">AI Configuration</h2>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="label">Preferred Provider</label>
+                                <select className="input">
+                                    <option value="openai">OpenAI</option>
+                                    <option value="openrouter">OpenRouter</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="label">Preferred Model</label>
+                                <select className="input">
+                                    <option value="gpt-4o">GPT-4o</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="label">Data Retention (Days)</label>
+                                <input
+                                    type="number"
+                                    className="input"
+                                    defaultValue={30}
+                                    min="1"
+                                    max="365"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Documents will be automatically purged after this period
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Save button */}
+                        <div className="mt-6 pt-4 border-t border-slate-200">
+                            <button
+                                onClick={async () => {
+                                    setSaving(true);
+                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                    setSaving(false);
+                                }}
+                                disabled={saving}
+                                className="btn-primary w-full"
+                            >
+                                {saving ? (
+                                    <>
+                                        <span className="spinner mr-2" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    'Save Configuration'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     );
