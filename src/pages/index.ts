@@ -1,3 +1,4 @@
 export * from './Intake';
 export * from './Editor';
-export { Dashboard, Login, Admin } from './placeholders';
+export * from './Admin';
+export { Dashboard, Login } from './placeholders';

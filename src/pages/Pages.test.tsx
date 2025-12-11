@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
 import { store } from '../store';
@@ -42,6 +42,18 @@ describe('Page Components', () => {
 
     it('renders Admin correctly', () => {
         renderWithProviders(<Admin />);
-        expect(screen.getByRole('heading', { name: /Admin Console/i })).toBeInTheDocument();
+        // Check for the main branding header
+        expect(screen.getByText(/LexForge/i)).toBeInTheDocument();
+        expect(screen.getByText(/Admin/i)).toBeInTheDocument();
+
+        // Default tab is Template Management
+        expect(screen.getByRole('heading', { name: /Template Management/i })).toBeInTheDocument();
+    });
+
+    it('switches tabs in Admin', () => {
+        renderWithProviders(<Admin />);
+        const userTab = screen.getByText(/User Management/i);
+        fireEvent.click(userTab);
+        expect(screen.getByRole('heading', { name: /User Directory/i })).toBeInTheDocument();
     });
 });
