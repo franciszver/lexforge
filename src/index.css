@@ -1,0 +1,55 @@
+:root {
+  /* Core Colors - Linear-inspired Dark Mode */
+  --bg-app: #0F1115;
+  --bg-surface: #16191D;
+  --bg-surface-hover: #1C1F24;
+
+  --border-subtle: #22262E;
+  --border-strong: #2C313A;
+
+  --text-primary: #EDEDEF;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+
+  --primary-brand: #5E6AD2;
+  --primary-brand-hover: #4C56AA;
+
+  /* Status Colors */
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+  --status-error: #EF4444;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: 'Merriweather', serif;
+  /* For legal drafts */
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(22, 25, 29, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Layout Utilities which replace previous Tailwind classes */
+.app-layout {
+  min-height: 100vh;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.page-container {
+  padding: 2rem;
+  flex: 1;
+}
