@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -207,7 +207,7 @@ export const createSnapshot = createAsyncThunk(
   'document/createSnapshot',
   async (
     { documentId, content, title, isAutoSave }: { documentId: string; content: string; title?: string; isAutoSave: boolean },
-    { getState, rejectWithValue }
+    { rejectWithValue }
   ) => {
     try {
       const snapshot: Snapshot = {
@@ -219,9 +219,14 @@ export const createSnapshot = createAsyncThunk(
         isAutoSave,
       };
 
-      const state = getState() as { document: DocumentState };
-      let snapshots = [...state.document.snapshots, snapshot];
+      // Load existing snapshots from localStorage to avoid losing them
+      const stored = localStorage.getItem(`lexforge_snapshots_${documentId}`);
+      let snapshots: Snapshot[] = stored ? JSON.parse(stored) : [];
+      
+      // Add new snapshot
+      snapshots = [snapshot, ...snapshots];
 
+      // Enforce MAX_SNAPSHOTS limit
       if (snapshots.length > MAX_SNAPSHOTS) {
         snapshots = snapshots
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -393,7 +398,10 @@ const documentSlice = createSlice({
       })
       // Create snapshot
       .addCase(createSnapshot.fulfilled, (state, action) => {
-        state.snapshots = [action.payload, ...state.snapshots].slice(0, MAX_SNAPSHOTS);
+        const updated = [action.payload, ...state.snapshots];
+        state.snapshots = updated
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, MAX_SNAPSHOTS);
       })
       // Share link
       .addCase(createShareLink.fulfilled, (state, action) => {

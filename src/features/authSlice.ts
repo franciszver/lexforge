@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 
 /**
@@ -32,7 +32,7 @@ export const checkSession = createAsyncThunk(
     try {
       const user = await getCurrentUser();
       const session = await fetchAuthSession();
-      
+
       // Check if user is admin (based on Cognito groups or custom attribute)
       const groups = session.tokens?.accessToken?.payload['cognito:groups'] as string[] | undefined;
       const isAdmin = groups?.includes('admin') ?? false;
