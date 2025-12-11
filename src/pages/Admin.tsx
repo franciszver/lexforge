@@ -94,6 +94,7 @@ export const Admin = () => {
                                             <button
                                                 onClick={() => handleDeleteTemplate(t.id)}
                                                 className="p-2 text-[var(--text-secondary)] hover:text-[var(--status-error)] rounded hover:bg-[var(--bg-app)]"
+                                                aria-label="Delete Template"
                                             >
                                                 <Trash2 size={16} />
                                             </button>

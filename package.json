@@ -37,6 +37,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.0.15",
     "aws-cdk-lib": "^2.216.0",
     "constructs": "^10.4.3",
     "esbuild": "^0.27.1",

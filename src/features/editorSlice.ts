@@ -1,6 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Suggestion } from '../types';
 
+/**
+ * Redux state for the Editor feature.
+ * Tracks the document content, sidebar visibility, RAG suggestions, and saving status.
+ */
 interface EditorState {
     isSidebarOpen: boolean;
     suggestions: Suggestion[];
@@ -41,6 +45,9 @@ const editorSlice = createSlice({
         setLastSaved: (state, action: PayloadAction<string>) => {
             state.lastSavedAt = action.payload;
         },
+        removeSuggestion: (state, action: PayloadAction<string>) => {
+            state.suggestions = state.suggestions.filter(s => s.id !== action.payload);
+        },
     },
 });
 
@@ -50,7 +57,8 @@ export const {
     setActiveSuggestion,
     setContent,
     setSaving,
-    setLastSaved
+    setLastSaved,
+    removeSuggestion
 } = editorSlice.actions;
 
 export default editorSlice.reducer;

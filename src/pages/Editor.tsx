@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
-import { toggleSidebar, setContent, setSaving, setLastSaved, setSuggestions } from '../features/editorSlice';
+import { toggleSidebar, setContent, setSaving, setLastSaved, setSuggestions, removeSuggestion } from '../features/editorSlice';
 import { SidebarIcon, Search, Settings, Sparkles, Download } from 'lucide-react';
 import classNames from 'classnames';
 import { SuggestionCard } from '../components/SuggestionCard';
@@ -11,6 +11,11 @@ import HTMLtoDOCX from 'html-to-docx';
 import { saveAs } from 'file-saver';
 
 
+/**
+ * The main Editor component using TipTap.
+ * Handles text editing, AI suggestion triggering, and document export.
+ * Connects to Redux for state management (content, suggestions).
+ */
 export const Editor = () => {
     const dispatch = useDispatch();
     const { content, isSidebarOpen, isSaving, lastSavedAt, suggestions } = useSelector((state: RootState) => state.editor);
@@ -172,8 +177,11 @@ export const Editor = () => {
                                 <SuggestionCard
                                     key={s.id}
                                     suggestion={s}
-                                    onAccept={(id) => console.log('Accept', id)}
-                                    onDismiss={(id) => console.log('Dismiss', id)}
+                                    onAccept={() => {
+                                        console.log('Accepted suggestion (TODO: implement replacement)', s);
+                                        dispatch(removeSuggestion(s.id));
+                                    }}
+                                    onDismiss={() => dispatch(removeSuggestion(s.id))}
                                 />
                             ))}
                         </div>

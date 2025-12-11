@@ -1,5 +1,12 @@
 import type { IntakeData } from '../types';
 
+/**
+ * Generates an HTML draft based on the collected intake data.
+ * Does basic string interpolation to inject variables into templates.
+ * 
+ * @param intake - The full intake state from Redux.
+ * @returns HTML string of the generated document.
+ */
 export const generateDraft = (intake: IntakeData): string => {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 

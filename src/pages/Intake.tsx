@@ -8,6 +8,11 @@ import type { Jurisdiction, PracticeArea, DocType } from '../types';
 import { setContent } from '../features/editorSlice';
 import { ArrowRight, FileText, Scale, Gavel } from 'lucide-react';
 
+/**
+ * Multi-step Intake Wizard.
+ * Collects user input (Jurisdiction, DocType, Specifics) to generate an initial draft.
+ * Pushes the generated draft to the Editor upon completion.
+ */
 export const Intake = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -97,7 +102,7 @@ export const Intake = () => {
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <h2 className="text-xl font-semibold flex items-center gap-2"><Scale size={20} /> Specifics</h2>
                         <div>
-                            <label className="block text-sm font-medium mb-2">Opposing Counse / Party Name</label>
+                            <label className="block text-sm font-medium mb-2">Opposing Counsel / Party Name</label>
                             <input
                                 type="text"
                                 className="w-full p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-strong)] focus:border-[var(--primary-brand)] outline-none"
