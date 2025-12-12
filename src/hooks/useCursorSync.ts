@@ -60,7 +60,7 @@ interface UseCursorSyncReturn {
 
 export function useCursorSync({
     editor,
-    userId,
+    userId: _userId,
     enabled = true,
 }: UseCursorSyncOptions): UseCursorSyncReturn {
     const [remoteCursors, setRemoteCursors] = useState<CursorData[]>([]);

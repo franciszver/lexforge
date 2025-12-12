@@ -30,7 +30,7 @@ describe('CollaborationCursor Types', () => {
     });
     
     it('should allow cursor without selection', () => {
-        const cursorData = {
+        const cursorData: { id: string; name: string; color: string; position: number; selection?: { from: number; to: number } } = {
             id: 'user-456',
             name: 'Jane Smith',
             color: '#3B82F6',

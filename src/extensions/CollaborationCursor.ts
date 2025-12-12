@@ -169,7 +169,7 @@ export const CollaborationCursor = Extension.create<CollaborationCursorOptions>(
                 state: {
                     init: () => DecorationSet.empty,
                     
-                    apply: (tr, decorationSet, _oldState, newState) => {
+                    apply: (tr, _decorationSet, _oldState, newState) => {
                         // Get cursors from plugin meta or use existing
                         const cursors: CursorData[] = tr.getMeta(collaborationCursorPluginKey)?.cursors 
                             || this.options.cursors 

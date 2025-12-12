@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { UserPresence } from './presenceTypes';
-import { presencesToCursors, type TipTapCursorData } from './presenceService';
+import type { UserPresence, CursorPosition, SelectionRange } from './presenceTypes';
+import { presencesToCursors } from './presenceService';
 
 describe('presencesToCursors', () => {
     it('should convert presences to cursor data', () => {
@@ -264,14 +264,14 @@ describe('Cursor Position Conversion', () => {
     it('should convert line/column to position correctly', () => {
         // The current implementation uses column as position
         // This tests the conversion logic
-        const cursorPos = { line: 0, column: 42 };
+        const cursorPos: CursorPosition = { line: 0, column: 42 };
         const position = cursorPos.column;
         
         expect(position).toBe(42);
     });
     
     it('should handle selection range conversion', () => {
-        const selectionRange = {
+        const selectionRange: SelectionRange = {
             start: { line: 0, column: 10 },
             end: { line: 0, column: 50 },
         };
@@ -285,20 +285,28 @@ describe('Cursor Position Conversion', () => {
     });
     
     it('should handle null cursor position', () => {
-        const cursorPos = null;
-        const position = cursorPos?.column ?? 0;
+        // Test the fallback behavior when cursor is null
+        const getPosition = (pos: CursorPosition | null) => pos?.column ?? 0;
         
-        expect(position).toBe(0);
+        expect(getPosition(null)).toBe(0);
+        expect(getPosition({ line: 0, column: 42 })).toBe(42);
     });
     
     it('should handle null selection range', () => {
-        const selectionRange = null;
-        const selection = selectionRange ? {
-            from: selectionRange.start.column,
-            to: selectionRange.end.column,
-        } : undefined;
+        // Test the conversion function behavior with null
+        const getSelection = (range: SelectionRange | null) => {
+            if (!range) return undefined;
+            return {
+                from: range.start.column,
+                to: range.end.column,
+            };
+        };
         
-        expect(selection).toBeUndefined();
+        expect(getSelection(null)).toBeUndefined();
+        expect(getSelection({
+            start: { line: 0, column: 10 },
+            end: { line: 0, column: 50 },
+        })).toEqual({ from: 10, to: 50 });
     });
 });
 

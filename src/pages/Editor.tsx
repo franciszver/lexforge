@@ -53,6 +53,7 @@ export const Editor = () => {
     
     // Content sync hook
     const {
+        localVersion,
         isSyncing,
         syncContent,
         forceSave: forceSyncSave,
