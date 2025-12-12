@@ -25,20 +25,27 @@ interface AuditEventParams {
 /**
  * Dispatch an audit event to be logged
  * This is fire-and-forget - it won't block the calling operation
+ * 
+ * Note: We use setTimeout to defer the dispatch because audit functions
+ * may be called from within Redux reducers (extraReducers), and dispatching
+ * from inside a reducer is not allowed.
  */
 export function dispatchAuditEvent(
     eventType: AuditEventType,
     action: AuditAction,
     params?: AuditEventParams
 ): void {
-    // Fire and forget - don't await
-    store.dispatch(logAuditEvent({
-        eventType,
-        action,
-        resourceType: params?.resourceType,
-        resourceId: params?.resourceId,
-        metadata: params?.metadata,
-    }));
+    // Defer dispatch to next tick to avoid "Reducers may not dispatch actions" error
+    // This is safe because audit logging is fire-and-forget
+    setTimeout(() => {
+        store.dispatch(logAuditEvent({
+            eventType,
+            action,
+            resourceType: params?.resourceType,
+            resourceId: params?.resourceId,
+            metadata: params?.metadata,
+        }));
+    }, 0);
 }
 
 // ============================================
