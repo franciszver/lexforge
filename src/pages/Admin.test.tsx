@@ -22,20 +22,61 @@ const mockTemplates = [
     },
 ];
 
+// Mock drafts data for stats
+const mockDrafts = [
+    {
+        id: 'draft-1',
+        userId: 'user-1',
+        title: 'Test Draft 1',
+        content: '<p>Content</p>',
+        status: 'draft',
+        metadata: JSON.stringify({ docType: 'Demand Letter', jurisdiction: 'Federal' }),
+        intakeData: '{}',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    },
+    {
+        id: 'draft-2',
+        userId: 'user-1',
+        title: 'Test Draft 2',
+        content: '<p>Content</p>',
+        status: 'review',
+        metadata: JSON.stringify({ docType: 'Contract', jurisdiction: 'California' }),
+        intakeData: '{}',
+        createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+        updatedAt: new Date().toISOString(),
+    },
+    {
+        id: 'draft-3',
+        userId: 'user-2',
+        title: 'Test Draft 3',
+        content: '<p>Content</p>',
+        status: 'final',
+        metadata: JSON.stringify({ docType: 'Demand Letter', jurisdiction: 'Federal' }),
+        intakeData: '{}',
+        createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+        updatedAt: new Date().toISOString(),
+    },
+];
+
 // Mock Amplify data client
-const mockList = vi.fn();
-const mockCreate = vi.fn();
-const mockUpdate = vi.fn();
-const mockDelete = vi.fn();
+const mockTemplateList = vi.fn();
+const mockTemplateCreate = vi.fn();
+const mockTemplateUpdate = vi.fn();
+const mockTemplateDelete = vi.fn();
+const mockDraftList = vi.fn();
 
 vi.mock('aws-amplify/data', () => ({
     generateClient: () => ({
         models: {
             Template: {
-                list: mockList,
-                create: mockCreate,
-                update: mockUpdate,
-                delete: mockDelete,
+                list: mockTemplateList,
+                create: mockTemplateCreate,
+                update: mockTemplateUpdate,
+                delete: mockTemplateDelete,
+            },
+            Draft: {
+                list: mockDraftList,
             },
         },
     }),
@@ -79,12 +120,13 @@ const renderAdmin = () => {
 describe('Admin Page', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockList.mockResolvedValue({ data: mockTemplates, errors: null });
-        mockCreate.mockResolvedValue({ 
+        mockTemplateList.mockResolvedValue({ data: mockTemplates, errors: null });
+        mockDraftList.mockResolvedValue({ data: mockDrafts, errors: null });
+        mockTemplateCreate.mockResolvedValue({ 
             data: { id: 'new-template', name: 'New Template', category: 'Motion', skeletonContent: '' },
             errors: null 
         });
-        mockDelete.mockResolvedValue({ errors: null });
+        mockTemplateDelete.mockResolvedValue({ errors: null });
     });
 
     afterEach(() => {
@@ -153,7 +195,7 @@ describe('Admin Page', () => {
         fireEvent.click(createButton);
 
         await waitFor(() => {
-            expect(mockCreate).toHaveBeenCalled();
+            expect(mockTemplateCreate).toHaveBeenCalled();
         });
     });
 
@@ -177,7 +219,7 @@ describe('Admin Page', () => {
         expect(confirmSpy).toHaveBeenCalled();
 
         await waitFor(() => {
-            expect(mockDelete).toHaveBeenCalledWith({ id: 'template-1' });
+            expect(mockTemplateDelete).toHaveBeenCalledWith({ id: 'template-1' });
         });
     });
 
@@ -197,7 +239,7 @@ describe('Admin Page', () => {
         fireEvent.click(deleteButtons[0]);
 
         expect(confirmSpy).toHaveBeenCalled();
-        expect(mockDelete).not.toHaveBeenCalled();
+        expect(mockTemplateDelete).not.toHaveBeenCalled();
     });
 
     it('navigates back to dashboard', async () => {
@@ -221,19 +263,114 @@ describe('Admin Page', () => {
         });
     });
 
-    it('shows Usage Statistics section', async () => {
+    it('shows AI Config section', async () => {
         renderAdmin();
 
         await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Usage Statistics/i })).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: /AI Config/i })).toBeInTheDocument();
         });
     });
 
-    it('shows AI Configuration section', async () => {
+    // New tests for activity stats
+    it('displays total documents count', async () => {
         renderAdmin();
 
         await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /AI Configuration/i })).toBeInTheDocument();
+            expect(screen.getByText('Total Documents')).toBeInTheDocument();
+            expect(screen.getByText('3')).toBeInTheDocument(); // 3 mock drafts
+        });
+    });
+
+    it('displays documents by status counts', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByText('In Draft')).toBeInTheDocument();
+            expect(screen.getByText('In Review')).toBeInTheDocument();
+            expect(screen.getByText('Finalized')).toBeInTheDocument();
+        });
+    });
+
+    it('shows Documents by Type section', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: /Documents by Type/i })).toBeInTheDocument();
+        });
+    });
+
+    it('shows Recent Activity section', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: /Recent Activity/i })).toBeInTheDocument();
+        });
+    });
+
+    it('displays recent drafts in activity feed', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByText('Test Draft 1')).toBeInTheDocument();
+            expect(screen.getByText('Test Draft 2')).toBeInTheDocument();
+            expect(screen.getByText('Test Draft 3')).toBeInTheDocument();
+        });
+    });
+
+    it('shows System Info section', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: /System Info/i })).toBeInTheDocument();
+        });
+    });
+
+    it('shows Refresh Data button', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByText('Refresh Data')).toBeInTheDocument();
+        });
+    });
+
+    it('refreshes data when Refresh Data is clicked', async () => {
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByText('Refresh Data')).toBeInTheDocument();
+        });
+
+        // Clear the call counts
+        mockTemplateList.mockClear();
+        mockDraftList.mockClear();
+
+        fireEvent.click(screen.getByText('Refresh Data'));
+
+        await waitFor(() => {
+            expect(mockTemplateList).toHaveBeenCalled();
+            expect(mockDraftList).toHaveBeenCalled();
+        });
+    });
+
+    it('handles empty draft list gracefully', async () => {
+        mockDraftList.mockResolvedValue({ data: [], errors: null });
+
+        renderAdmin();
+
+        await waitFor(() => {
+            expect(screen.getByText('No documents yet')).toBeInTheDocument();
+            expect(screen.getByText('No recent activity')).toBeInTheDocument();
+        });
+    });
+
+    it('handles draft loading errors gracefully', async () => {
+        mockDraftList.mockResolvedValue({ data: null, errors: [{ message: 'Not authorized' }] });
+
+        renderAdmin();
+
+        // Should show 0 counts when there's an error (admin may not have access)
+        await waitFor(() => {
+            expect(screen.getByText('Total Documents')).toBeInTheDocument();
         });
     });
 });

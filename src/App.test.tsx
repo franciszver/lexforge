@@ -78,7 +78,7 @@ const createTestStore = (isAuthenticated = true) => configureStore({
         ui: uiReducer,
         auth: authReducer,
         intake: intakeReducer,
-    },
+    } as any,
     preloadedState: {
         auth: {
             isAuthenticated,
@@ -129,7 +129,7 @@ describe('App Routing', () => {
 
     it('renders Dashboard for authenticated users at root', async () => {
         const store = createTestStore(true);
-        
+
         render(
             <Provider store={store}>
                 <App />
@@ -144,7 +144,7 @@ describe('App Routing', () => {
     it('redirects to login for unauthenticated users', async () => {
         mockIsAuthenticated = false;
         const store = createTestStore(false);
-        
+
         render(
             <Provider store={store}>
                 <App />
@@ -158,7 +158,7 @@ describe('App Routing', () => {
 
     it('renders Login page on /login', async () => {
         const store = createTestStore(false);
-        
+
         render(
             <Provider store={store}>
                 <MemoryRouter initialEntries={['/login']}>

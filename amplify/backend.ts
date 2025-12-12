@@ -3,7 +3,6 @@ import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { generateSuggestion } from './functions/generate-suggestion/resource';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
-import { CfnUserPool } from 'aws-cdk-lib/aws-cognito';
 
 export const backend = defineBackend({
   auth,
@@ -11,14 +10,9 @@ export const backend = defineBackend({
   generateSuggestion,
 });
 
-// Get the underlying Cognito User Pool CFN resource
-const cfnUserPool = backend.auth.resources.cfnResources.cfnUserPool as CfnUserPool;
-
-// Enable Advanced Security Features with AUDIT mode (lower cost than ENFORCED)
-// This allows more lenient rate limiting and better monitoring
-cfnUserPool.userPoolAddOns = {
-  advancedSecurityMode: 'AUDIT',
-};
+// Note: Advanced Security Features (advancedSecurityMode) removed because
+// it requires Cognito PLUS pricing tier. The default ESSENTIALS tier
+// does not support Threat Protection features.
 
 // Add IAM permissions for Lambda to read from Secrets Manager
 backend.generateSuggestion.resources.lambda.addToRolePolicy(

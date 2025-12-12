@@ -13,6 +13,7 @@ const schema = a.schema({
   })
     .authorization((allow) => [
       allow.owner(), // Only the creator can read/update
+      allow.group('Admins').to(['read']), // Admins can read all drafts for analytics
     ]),
 
   Template: a.model({
@@ -32,6 +33,18 @@ const schema = a.schema({
   })
     .authorization((allow) => [
       allow.owner(),
+    ]),
+
+  // Analytics events for tracking usage
+  AnalyticsEvent: a.model({
+    eventType: a.string().required(), // 'document_created', 'ai_suggestion', 'suggestion_accepted', 'export'
+    userId: a.string().required(),
+    documentId: a.string(),
+    metadata: a.json(), // Additional event data
+  })
+    .authorization((allow) => [
+      allow.owner().to(['create', 'read']), // Users can create and read their own events
+      allow.group('Admins').to(['read']), // Admins can read all events for analytics
     ]),
 
   // Custom Query to call Lambda
