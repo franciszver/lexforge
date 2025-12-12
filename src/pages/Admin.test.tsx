@@ -503,4 +503,58 @@ describe('Admin Page', () => {
             });
         });
     });
+
+    describe('Reports Tab', () => {
+        it('shows Reports tab in navigation', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Reports/i })).toBeInTheDocument();
+            });
+        });
+
+        it('shows Reports tab content when clicked', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Reports/i })).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /Reports/i }));
+
+            // The AuditReportGenerator component renders within the tab content
+            await waitFor(() => {
+                expect(screen.getByText('Audit Reports')).toBeInTheDocument();
+            });
+        });
+
+        it('shows date range options in reports tab', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Reports/i })).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /Reports/i }));
+
+            await waitFor(() => {
+                expect(screen.getByText('Last 7 Days')).toBeInTheDocument();
+                expect(screen.getByText('Last 30 Days')).toBeInTheDocument();
+            });
+        });
+
+        it('shows export CSV button in reports tab', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Reports/i })).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /Reports/i }));
+
+            await waitFor(() => {
+                expect(screen.getByText('Export CSV')).toBeInTheDocument();
+            });
+        });
+    });
 });
