@@ -112,21 +112,22 @@ function UserAvatar({ presence, size = 'md', showStatus = true, showTooltip = tr
 // Presence List Component
 // ============================================
 
-function PresenceList({ presences, currentUserId }: { presences: UserPresence[]; currentUserId: string }) {
-    const otherUsers = presences.filter(p => p.userId !== currentUserId);
+function PresenceList({ presences, currentSessionId }: { presences: UserPresence[]; currentUserId: string; currentSessionId?: string }) {
+    // Filter by session, not user - allows same user to see their other sessions
+    const otherSessions = presences.filter(p => p.sessionId !== currentSessionId);
     
-    if (otherUsers.length === 0) {
+    if (otherSessions.length === 0) {
         return (
             <div className="py-4 text-center text-slate-500">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No one else is viewing this document</p>
+                <p className="text-sm">No other sessions viewing this document</p>
             </div>
         );
     }
     
     return (
         <div className="divide-y divide-slate-100">
-            {otherUsers.map(presence => (
+            {otherSessions.map(presence => (
                 <div key={presence.id} className="flex items-center gap-3 p-3">
                     <UserAvatar presence={presence} size="md" showTooltip={false} />
                     <div className="flex-1 min-w-0">
@@ -238,10 +239,13 @@ export function PresenceIndicator({
         return () => clearInterval(interval);
     }, []);
     
-    // Filter out current user for display
-    const otherUsers = presences.filter(p => p.userId !== currentUserId);
-    const visibleUsers = otherUsers.slice(0, maxVisible);
-    const hiddenCount = otherUsers.length - visibleUsers.length;
+    // Get current session ID from presence service
+    // Filter out current SESSION (not user) for display - allows same user to see other sessions
+    const currentSessionId = presences.find(p => p.userId === currentUserId)?.sessionId;
+    const otherSessions = presences.filter(p => p.sessionId !== currentSessionId);
+    const visibleUsers = otherSessions.slice(0, maxVisible);
+    const hiddenCount = otherSessions.length - visibleUsers.length;
+    const totalViewers = presences.length; // Total including self
     
     if (isLoading) {
         return (
@@ -278,10 +282,10 @@ export function PresenceIndicator({
                     )}
                 </div>
                 
-                {/* Count badge */}
-                {otherUsers.length > 0 && (
+                {/* Count badge - show total viewers including self */}
+                {totalViewers > 0 && (
                     <span className="ml-2 text-xs text-slate-500">
-                        {otherUsers.length} {otherUsers.length === 1 ? 'viewer' : 'viewers'}
+                        {totalViewers} {totalViewers === 1 ? 'viewer' : 'viewers'}
                     </span>
                 )}
             </div>
@@ -322,9 +326,9 @@ export function PresenceIndicator({
                 
                 {/* Label */}
                 <span className="text-sm text-slate-600">
-                    {otherUsers.length === 0
+                    {otherSessions.length === 0
                         ? 'Only you'
-                        : `${otherUsers.length + 1} viewing`}
+                        : `${totalViewers} viewing`}
                 </span>
             </button>
             
@@ -363,8 +367,8 @@ export function PresenceIndicator({
                             </div>
                         )}
                         
-                        {/* Other users */}
-                        <PresenceList presences={presences} currentUserId={currentUserId} />
+                        {/* Other sessions */}
+                        <PresenceList presences={presences} currentUserId={currentUserId} currentSessionId={currentSessionId} />
                     </div>
                 </>
             )}
