@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '../features/authSlice';
+import auditReducer from '../features/auditSlice';
 import { Admin } from './Admin';
 
 // Mock audit utilities to prevent side effects during tests
@@ -97,6 +98,11 @@ const mockTemplateCreate = vi.fn();
 const mockTemplateUpdate = vi.fn();
 const mockTemplateDelete = vi.fn();
 const mockDraftList = vi.fn();
+const mockAuditLogList = vi.fn();
+const mockAuditLogCreate = vi.fn();
+const mockAuditLogListByUserId = vi.fn();
+const mockAuditLogListByEventType = vi.fn();
+const mockAuditLogListByResourceId = vi.fn();
 
 vi.mock('aws-amplify/data', () => ({
     generateClient: () => ({
@@ -109,6 +115,13 @@ vi.mock('aws-amplify/data', () => ({
             },
             Draft: {
                 list: mockDraftList,
+            },
+            AuditLog: {
+                list: mockAuditLogList,
+                create: mockAuditLogCreate,
+                listAuditLogByUserIdAndTimestamp: mockAuditLogListByUserId,
+                listAuditLogByEventTypeAndTimestamp: mockAuditLogListByEventType,
+                listAuditLogByResourceIdAndTimestamp: mockAuditLogListByResourceId,
             },
         },
     }),
@@ -128,6 +141,7 @@ const renderAdmin = () => {
     const store = configureStore({
         reducer: {
             auth: authReducer,
+            audit: auditReducer,
         },
         preloadedState: {
             auth: {
@@ -149,6 +163,12 @@ const renderAdmin = () => {
     );
 };
 
+// Helper to navigate to Templates tab
+const navigateToTemplatesTab = () => {
+    const templatesTab = screen.getByRole('button', { name: /Templates/i });
+    fireEvent.click(templatesTab);
+};
+
 describe('Admin Page', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -159,250 +179,328 @@ describe('Admin Page', () => {
             errors: null 
         });
         mockTemplateDelete.mockResolvedValue({ errors: null });
+        mockAuditLogList.mockResolvedValue({ data: [], errors: null, nextToken: null });
+        mockAuditLogListByUserId.mockResolvedValue({ data: [], errors: null, nextToken: null });
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('renders Admin Console header', async () => {
-        renderAdmin();
-        
-        await waitFor(() => {
-            expect(screen.getByText('Admin Console')).toBeInTheDocument();
+    describe('Header and Navigation', () => {
+        it('renders Admin Console header', async () => {
+            renderAdmin();
+            
+            await waitFor(() => {
+                expect(screen.getByText('Admin Console')).toBeInTheDocument();
+            });
+        });
+
+        it('shows tab navigation', async () => {
+            renderAdmin();
+            
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Overview/i })).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: /Audit Logs/i })).toBeInTheDocument();
+            });
+        });
+
+        it('navigates back to dashboard', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByText('Back to Dashboard'));
+
+            expect(mockNavigate).toHaveBeenCalledWith('/');
+        });
+
+        it('shows Refresh Data button', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByText('Refresh Data')).toBeInTheDocument();
+            });
         });
     });
 
-    it('loads and displays templates', async () => {
-        renderAdmin();
+    describe('Overview Tab', () => {
+        it('displays total documents count', async () => {
+            renderAdmin();
 
-        await waitFor(() => {
-            expect(screen.getByText('Demand Letter Template')).toBeInTheDocument();
-            expect(screen.getByText('Contract Template')).toBeInTheDocument();
+            await waitFor(() => {
+                expect(screen.getByText('Total Documents')).toBeInTheDocument();
+                expect(screen.getByText('3')).toBeInTheDocument(); // 3 mock drafts
+            });
+        });
+
+        it('displays documents by status counts', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByText('In Draft')).toBeInTheDocument();
+                expect(screen.getByText('In Review')).toBeInTheDocument();
+                expect(screen.getByText('Finalized')).toBeInTheDocument();
+            });
+        });
+
+        it('shows Documents by Type section', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: /Documents by Type/i })).toBeInTheDocument();
+            });
+        });
+
+        it('shows Recent Activity section', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: /Recent Activity/i })).toBeInTheDocument();
+            });
+        });
+
+        it('displays recent drafts in activity feed', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByText('Test Draft 1')).toBeInTheDocument();
+                expect(screen.getByText('Test Draft 2')).toBeInTheDocument();
+                expect(screen.getByText('Test Draft 3')).toBeInTheDocument();
+            });
+        });
+
+        it('shows Users section with Cognito info', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: /Users/i })).toBeInTheDocument();
+                expect(screen.getByText(/User management is handled through AWS Cognito/i)).toBeInTheDocument();
+            });
+        });
+
+        it('shows AI Config section', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: /AI Config/i })).toBeInTheDocument();
+            });
+        });
+
+        it('shows System Info section', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: /System Info/i })).toBeInTheDocument();
+            });
+        });
+
+        it('handles empty draft list gracefully', async () => {
+            mockDraftList.mockResolvedValue({ data: [], errors: null });
+
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByText('No documents yet')).toBeInTheDocument();
+                expect(screen.getByText('No recent activity')).toBeInTheDocument();
+            });
+        });
+
+        it('handles draft loading errors gracefully', async () => {
+            mockDraftList.mockResolvedValue({ data: null, errors: [{ message: 'Not authorized' }] });
+
+            renderAdmin();
+
+            // Should show 0 counts when there's an error (admin may not have access)
+            await waitFor(() => {
+                expect(screen.getByText('Total Documents')).toBeInTheDocument();
+            });
+        });
+
+        it('refreshes data when Refresh Data is clicked', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByText('Refresh Data')).toBeInTheDocument();
+            });
+
+            // Clear the call counts
+            mockTemplateList.mockClear();
+            mockDraftList.mockClear();
+
+            fireEvent.click(screen.getByText('Refresh Data'));
+
+            await waitFor(() => {
+                expect(mockTemplateList).toHaveBeenCalled();
+                expect(mockDraftList).toHaveBeenCalled();
+            });
         });
     });
 
-    it('shows Templates section', async () => {
-        renderAdmin();
+    describe('Templates Tab', () => {
+        it('loads and displays templates', async () => {
+            renderAdmin();
 
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Templates/i })).toBeInTheDocument();
+            // Wait for initial load then navigate to templates tab
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByText('Demand Letter Template')).toBeInTheDocument();
+                expect(screen.getByText('Contract Template')).toBeInTheDocument();
+            });
+        });
+
+        it('shows Templates section heading', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: /Templates/i })).toBeInTheDocument();
+            });
+        });
+
+        it('shows New Template button', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /New Template/i })).toBeInTheDocument();
+            });
+        });
+
+        it('opens create template modal when New Template is clicked', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /New Template/i })).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /New Template/i }));
+
+            expect(screen.getByRole('heading', { name: 'New Template' })).toBeInTheDocument();
+            expect(screen.getByPlaceholderText('e.g., Standard Demand Letter')).toBeInTheDocument();
+        });
+
+        it('creates a new template', async () => {
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /New Template/i })).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /New Template/i }));
+
+            const nameInput = screen.getByPlaceholderText('e.g., Standard Demand Letter');
+            fireEvent.change(nameInput, { target: { value: 'Test Template' } });
+
+            const createButton = screen.getByRole('button', { name: /Create Template/i });
+            fireEvent.click(createButton);
+
+            await waitFor(() => {
+                expect(mockTemplateCreate).toHaveBeenCalled();
+            });
+        });
+
+        it('deletes a template when confirmed', async () => {
+            const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByText('Demand Letter Template')).toBeInTheDocument();
+            });
+
+            // Find delete buttons (using aria-label or by finding the Trash icon button)
+            const deleteButtons = screen.getAllByRole('button').filter(btn => 
+                btn.querySelector('svg.lucide-trash-2')
+            );
+            expect(deleteButtons.length).toBeGreaterThan(0);
+
+            fireEvent.click(deleteButtons[0]);
+
+            expect(confirmSpy).toHaveBeenCalled();
+
+            await waitFor(() => {
+                expect(mockTemplateDelete).toHaveBeenCalledWith({ id: 'template-1' });
+            });
+        });
+
+        it('does not delete when cancelled', async () => {
+            const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => false);
+
+            renderAdmin();
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Templates/i })).toBeInTheDocument();
+            });
+
+            navigateToTemplatesTab();
+
+            await waitFor(() => {
+                expect(screen.getByText('Demand Letter Template')).toBeInTheDocument();
+            });
+
+            const deleteButtons = screen.getAllByRole('button').filter(btn => 
+                btn.querySelector('svg.lucide-trash-2')
+            );
+            
+            fireEvent.click(deleteButtons[0]);
+
+            expect(confirmSpy).toHaveBeenCalled();
+            expect(mockTemplateDelete).not.toHaveBeenCalled();
         });
     });
 
-    it('shows New Template button', async () => {
-        renderAdmin();
+    describe('Audit Logs Tab', () => {
+        it('shows Audit Logs tab content when clicked', async () => {
+            renderAdmin();
 
-        await waitFor(() => {
-            expect(screen.getByText('New Template')).toBeInTheDocument();
-        });
-    });
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Audit Logs/i })).toBeInTheDocument();
+            });
 
-    it('opens create template modal when New Template is clicked', async () => {
-        renderAdmin();
+            fireEvent.click(screen.getByRole('button', { name: /Audit Logs/i }));
 
-        await waitFor(() => {
-            expect(screen.getByText('New Template')).toBeInTheDocument();
-        });
-
-        fireEvent.click(screen.getByText('New Template'));
-
-        expect(screen.getByRole('heading', { name: 'New Template' })).toBeInTheDocument();
-        expect(screen.getByPlaceholderText('e.g., Standard Demand Letter')).toBeInTheDocument();
-    });
-
-    it('creates a new template', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('New Template')).toBeInTheDocument();
-        });
-
-        fireEvent.click(screen.getByText('New Template'));
-
-        const nameInput = screen.getByPlaceholderText('e.g., Standard Demand Letter');
-        fireEvent.change(nameInput, { target: { value: 'Test Template' } });
-
-        const createButton = screen.getByRole('button', { name: /Create Template/i });
-        fireEvent.click(createButton);
-
-        await waitFor(() => {
-            expect(mockTemplateCreate).toHaveBeenCalled();
-        });
-    });
-
-    it('deletes a template when confirmed', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
-
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Demand Letter Template')).toBeInTheDocument();
-        });
-
-        // Find delete buttons (using aria-label or by finding the Trash icon button)
-        const deleteButtons = screen.getAllByRole('button').filter(btn => 
-            btn.querySelector('svg.lucide-trash-2')
-        );
-        expect(deleteButtons.length).toBeGreaterThan(0);
-
-        fireEvent.click(deleteButtons[0]);
-
-        expect(confirmSpy).toHaveBeenCalled();
-
-        await waitFor(() => {
-            expect(mockTemplateDelete).toHaveBeenCalledWith({ id: 'template-1' });
-        });
-    });
-
-    it('does not delete when cancelled', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => false);
-
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Demand Letter Template')).toBeInTheDocument();
-        });
-
-        const deleteButtons = screen.getAllByRole('button').filter(btn => 
-            btn.querySelector('svg.lucide-trash-2')
-        );
-        
-        fireEvent.click(deleteButtons[0]);
-
-        expect(confirmSpy).toHaveBeenCalled();
-        expect(mockTemplateDelete).not.toHaveBeenCalled();
-    });
-
-    it('navigates back to dashboard', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
-        });
-
-        fireEvent.click(screen.getByText('Back to Dashboard'));
-
-        expect(mockNavigate).toHaveBeenCalledWith('/');
-    });
-
-    it('shows Users section with Cognito info', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Users/i })).toBeInTheDocument();
-            expect(screen.getByText(/User management is handled through AWS Cognito/i)).toBeInTheDocument();
-        });
-    });
-
-    it('shows AI Config section', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /AI Config/i })).toBeInTheDocument();
-        });
-    });
-
-    // New tests for activity stats
-    it('displays total documents count', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Total Documents')).toBeInTheDocument();
-            expect(screen.getByText('3')).toBeInTheDocument(); // 3 mock drafts
-        });
-    });
-
-    it('displays documents by status counts', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('In Draft')).toBeInTheDocument();
-            expect(screen.getByText('In Review')).toBeInTheDocument();
-            expect(screen.getByText('Finalized')).toBeInTheDocument();
-        });
-    });
-
-    it('shows Documents by Type section', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Documents by Type/i })).toBeInTheDocument();
-        });
-    });
-
-    it('shows Recent Activity section', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Recent Activity/i })).toBeInTheDocument();
-        });
-    });
-
-    it('displays recent drafts in activity feed', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Test Draft 1')).toBeInTheDocument();
-            expect(screen.getByText('Test Draft 2')).toBeInTheDocument();
-            expect(screen.getByText('Test Draft 3')).toBeInTheDocument();
-        });
-    });
-
-    it('shows System Info section', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /System Info/i })).toBeInTheDocument();
-        });
-    });
-
-    it('shows Refresh Data button', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Refresh Data')).toBeInTheDocument();
-        });
-    });
-
-    it('refreshes data when Refresh Data is clicked', async () => {
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('Refresh Data')).toBeInTheDocument();
-        });
-
-        // Clear the call counts
-        mockTemplateList.mockClear();
-        mockDraftList.mockClear();
-
-        fireEvent.click(screen.getByText('Refresh Data'));
-
-        await waitFor(() => {
-            expect(mockTemplateList).toHaveBeenCalled();
-            expect(mockDraftList).toHaveBeenCalled();
-        });
-    });
-
-    it('handles empty draft list gracefully', async () => {
-        mockDraftList.mockResolvedValue({ data: [], errors: null });
-
-        renderAdmin();
-
-        await waitFor(() => {
-            expect(screen.getByText('No documents yet')).toBeInTheDocument();
-            expect(screen.getByText('No recent activity')).toBeInTheDocument();
-        });
-    });
-
-    it('handles draft loading errors gracefully', async () => {
-        mockDraftList.mockResolvedValue({ data: null, errors: [{ message: 'Not authorized' }] });
-
-        renderAdmin();
-
-        // Should show 0 counts when there's an error (admin may not have access)
-        await waitFor(() => {
-            expect(screen.getByText('Total Documents')).toBeInTheDocument();
+            // The AuditLogViewer component renders within the tab content
+            // Check for the Apply Filters button which is part of the AuditLogViewer
+            await waitFor(() => {
+                expect(screen.getByText('Apply Filters')).toBeInTheDocument();
+            });
         });
     });
 });

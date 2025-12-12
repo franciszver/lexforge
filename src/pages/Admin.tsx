@@ -4,8 +4,9 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 import { 
     Plus, ArrowLeft, Edit2, Trash2, X, FileText, Users, Settings, 
-    BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen
+    BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen, Activity
 } from 'lucide-react';
+import { AuditLogViewer } from '../components/AuditLogViewer';
 
 // Lazy client initialization to avoid "Amplify not configured" errors
 let _client: ReturnType<typeof generateClient<Schema>> | null = null;
@@ -55,6 +56,9 @@ export const Admin = () => {
         recentDrafts: [],
     });
     const [loadingStats, setLoadingStats] = useState(true);
+    
+    // Tab state
+    const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'audit'>('overview');
     
     // Modal state
     const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -303,26 +307,139 @@ export const Admin = () => {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <header className="bg-white border-b border-slate-200 px-6 py-4">
-                <div className="flex items-center justify-between max-w-7xl mx-auto">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => navigate('/')} className="btn-ghost">
-                            <ArrowLeft className="w-5 h-5 mr-2" />
-                            Back to Dashboard
+            <header className="bg-white border-b border-slate-200">
+                <div className="px-6 py-4">
+                    <div className="flex items-center justify-between max-w-7xl mx-auto">
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => navigate('/')} className="btn-ghost">
+                                <ArrowLeft className="w-5 h-5 mr-2" />
+                                Back to Dashboard
+                            </button>
+                            <h1 className="text-xl font-semibold text-slate-900">Admin Console</h1>
+                        </div>
+                        <button 
+                            onClick={() => { loadTemplates(); loadDraftStats(); }} 
+                            className="btn-ghost btn-sm"
+                        >
+                            Refresh Data
                         </button>
-                        <h1 className="text-xl font-semibold text-slate-900">Admin Console</h1>
                     </div>
-                    <button 
-                        onClick={() => { loadTemplates(); loadDraftStats(); }} 
-                        className="btn-ghost btn-sm"
-                    >
-                        Refresh Data
-                    </button>
+                </div>
+                
+                {/* Tabs */}
+                <div className="px-6 max-w-7xl mx-auto">
+                    <nav className="flex gap-1">
+                        <button
+                            onClick={() => setActiveTab('overview')}
+                            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                                activeTab === 'overview'
+                                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                        >
+                            <BarChart3 className="w-4 h-4 inline mr-2" />
+                            Overview
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('templates')}
+                            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                                activeTab === 'templates'
+                                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                        >
+                            <FileText className="w-4 h-4 inline mr-2" />
+                            Templates
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('audit')}
+                            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                                activeTab === 'audit'
+                                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                        >
+                            <Activity className="w-4 h-4 inline mr-2" />
+                            Audit Logs
+                        </button>
+                    </nav>
                 </div>
             </header>
 
             {/* Content */}
             <main className="max-w-7xl mx-auto p-6">
+                {/* Audit Logs Tab */}
+                {activeTab === 'audit' && (
+                    <div className="card p-6">
+                        <AuditLogViewer />
+                    </div>
+                )}
+
+                {/* Templates Tab */}
+                {activeTab === 'templates' && (
+                    <div className="space-y-6">
+                        {/* Templates Card */}
+                        <div className="card p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-primary-600" />
+                                    <h2 className="text-lg font-semibold text-slate-900">Templates</h2>
+                                </div>
+                                <button onClick={openCreateModal} className="btn-primary btn-sm">
+                                    <Plus className="w-4 h-4 mr-1" />
+                                    New Template
+                                </button>
+                            </div>
+
+                            {loadingTemplates ? (
+                                <div className="text-center py-8">
+                                    <span className="spinner w-6 h-6 text-primary-600" />
+                                    <p className="text-sm text-slate-500 mt-2">Loading templates...</p>
+                                </div>
+                            ) : templates.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <FileText className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-500">No templates yet</p>
+                                    <button onClick={openCreateModal} className="btn-primary btn-sm mt-3">
+                                        Create First Template
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {templates.map((t) => (
+                                        <div
+                                            key={t.id}
+                                            className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                                        >
+                                            <div>
+                                                <p className="font-medium text-slate-900">{t.name}</p>
+                                                <p className="text-sm text-slate-500">{t.category}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openEditModal(t)}
+                                                    className="p-2 text-slate-400 hover:text-primary-600 hover:bg-white rounded"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteTemplate(t.id)}
+                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                <>
                 {/* Stats Overview Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="card p-4">
@@ -380,65 +497,8 @@ export const Admin = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column - Templates & Users */}
+                    {/* Left Column - Stats & Config */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Templates Card */}
-                        <div className="card p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <FileText className="w-5 h-5 text-primary-600" />
-                                    <h2 className="text-lg font-semibold text-slate-900">Templates</h2>
-                                </div>
-                                <button onClick={openCreateModal} className="btn-primary btn-sm">
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    New Template
-                                </button>
-                            </div>
-
-                            {loadingTemplates ? (
-                                <div className="text-center py-8">
-                                    <span className="spinner w-6 h-6 text-primary-600" />
-                                    <p className="text-sm text-slate-500 mt-2">Loading templates...</p>
-                                </div>
-                            ) : templates.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <FileText className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-500">No templates yet</p>
-                                    <button onClick={openCreateModal} className="btn-primary btn-sm mt-3">
-                                        Create First Template
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-2 max-h-64 overflow-auto">
-                                    {templates.map((t) => (
-                                        <div
-                                            key={t.id}
-                                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-                                        >
-                                            <div>
-                                                <p className="text-sm font-medium text-slate-900">{t.name}</p>
-                                                <p className="text-xs text-slate-500">{t.category}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={() => openEditModal(t)}
-                                                    className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-white rounded"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteTemplate(t.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
                         {/* Document Types Distribution */}
                         <div className="card p-6">
                             <div className="flex items-center gap-2 mb-4">
@@ -590,6 +650,8 @@ export const Admin = () => {
                         </div>
                     </div>
                 </div>
+                </>
+                )}
             </main>
 
             {/* Template Modal */}

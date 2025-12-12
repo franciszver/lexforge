@@ -285,8 +285,16 @@ export const fetchAuditLogs = createAsyncThunk(
                 return rejectWithValue('Failed to fetch audit logs');
             }
 
-            // Filter by date range client-side if needed
+            // Extract logs from result
             let logs = (result.data || []) as AuditLogEntry[];
+            
+            // Sort by timestamp descending when using default list
+            // (GSI queries already sort by timestamp, but default list doesn't)
+            if (!filters?.userId && !filters?.eventType && !filters?.resourceId) {
+                logs = [...logs].sort((a, b) => 
+                    new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+                );
+            }
             
             if (filters?.startDate || filters?.endDate) {
                 logs = logs.filter((log) => {
