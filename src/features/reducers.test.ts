@@ -57,6 +57,7 @@ describe('Intake Reducer', () => {
 describe('Document Reducer', () => {
     const mockDocument = {
         id: '123',
+        userId: 'test-user-123',
         title: 'Test Doc',
         content: '<p>Test</p>',
         status: 'draft' as const,

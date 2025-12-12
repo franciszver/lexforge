@@ -134,6 +134,8 @@ const createTestStore = () => configureStore({
             fontSize: 'medium' as const,
             showNewDocModal: false,
             showShareModal: false,
+            showInviteModal: false,
+            showClauseBrowser: false,
             showDeleteConfirm: null,
             pendingInsertion: null,
         },

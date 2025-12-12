@@ -78,16 +78,31 @@ export function useCursorSync({
     
     // Handle presence updates
     const handlePresenceUpdate = useCallback((presences: UserPresence[]) => {
+        console.log('[CursorSync] Received', presences.length, 'presences, current session:', currentSessionId.current);
+        
         // Filter out current session and convert to cursor data
         const otherPresences = presences.filter(
-            p => p.sessionId !== currentSessionId.current
+            p => {
+                const isCurrentSession = p.sessionId === currentSessionId.current;
+                console.log('[CursorSync] Presence', p.userId, 'session:', p.sessionId, 'isCurrentSession:', isCurrentSession);
+                return !isCurrentSession;
+            }
         );
+        
+        console.log('[CursorSync] After filtering:', otherPresences.length, 'other presences');
+        
         const cursors = presencesToCursors(otherPresences);
         setRemoteCursors(cursors);
         
+        // Debug: Log cursors being sent to TipTap
+        console.log('[CursorSync] Remote cursors to render:', cursors.length, cursors);
+        
         // Update TipTap decorations
         if (editor && !editor.isDestroyed) {
+            console.log('[CursorSync] Calling updateCollaborationCursors');
             updateCollaborationCursors(editor, cursors);
+        } else {
+            console.warn('[CursorSync] Editor not ready, cannot render cursors. Editor:', !!editor, 'isDestroyed:', editor?.isDestroyed);
         }
     }, [editor]);
     

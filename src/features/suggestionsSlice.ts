@@ -21,7 +21,7 @@ export type FeedbackType = 'up' | 'down' | null;
 
 export interface Suggestion {
     id: string;
-    type: 'tone' | 'precision' | 'source' | 'risk' | 'structured';
+    type: 'tone' | 'precision' | 'source' | 'risk' | 'structured' | 'clause';
     title: string;
     text: string;
     replacementText?: string;
@@ -33,6 +33,10 @@ export interface Suggestion {
     archived: boolean;
     superseded: boolean;
     feedback: FeedbackType;
+    // Clause-specific fields
+    clauseId?: string;
+    clauseContent?: string;
+    clauseCategory?: string;
 }
 
 export type Formality = 'casual' | 'moderate' | 'formal';
@@ -126,6 +130,7 @@ export const generateSuggestions = createAsyncThunk(
                     riskAppetite: signals.riskAppetite,
                     approverPov: approverPov,
                     suggestionCount: suggestionCount,
+                    includeClauseSuggestions: true, // Enable clause suggestions from RAG
                 },
             });
 
@@ -135,20 +140,33 @@ export const generateSuggestions = createAsyncThunk(
             }
 
             // Parse the response
-            const data = response.data as { suggestions?: Array<{
-                id: string;
-                type: string;
-                title: string;
-                text: string;
-                replacementText?: string;
-                confidence: number;
-                sourceRefs?: string[];
-            }> } | null;
+            const data = response.data as { 
+                suggestions?: Array<{
+                    id: string;
+                    type: string;
+                    title: string;
+                    text: string;
+                    replacementText?: string;
+                    confidence: number;
+                    sourceRefs?: string[];
+                    // Clause-specific fields
+                    clauseId?: string;
+                    clauseContent?: string;
+                    clauseCategory?: string;
+                }>;
+                relevantClauses?: Array<{
+                    id: string;
+                    title: string;
+                    category: string;
+                    description?: string;
+                    relevanceScore: number;
+                }>;
+            } | null;
             
             const rawSuggestions = data?.suggestions || [];
 
             // Transform to our Suggestion format
-            const suggestions: Suggestion[] = rawSuggestions.slice(0, suggestionCount).map((s) => ({
+            const suggestions: Suggestion[] = rawSuggestions.slice(0, suggestionCount + 5).map((s) => ({
                 id: s.id || crypto.randomUUID(),
                 type: (s.type as Suggestion['type']) || 'structured',
                 title: s.title || 'Suggestion',
@@ -161,6 +179,10 @@ export const generateSuggestions = createAsyncThunk(
                 archived: false,
                 superseded: false,
                 feedback: null,
+                // Clause-specific fields
+                clauseId: s.clauseId,
+                clauseContent: s.clauseContent,
+                clauseCategory: s.clauseCategory,
             }));
 
             return {

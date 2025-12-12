@@ -312,6 +312,78 @@ const schema = a.schema({
     ]),
 
   // ============================================
+  // DOCUMENT SHARING & COLLABORATION
+  // ============================================
+
+  // Document collaborators with role-based access
+  DocumentCollaborator: a.model({
+    documentId: a.string().required(),
+    documentOwnerId: a.string().required(),   // Owner of the document
+    
+    // Collaborator info
+    collaboratorUserId: a.string(),           // Cognito user ID (filled when accepted)
+    collaboratorEmail: a.string().required(), // Email used for invitation
+    
+    // Role and permissions
+    role: a.string().required(),              // 'viewer' | 'editor' | 'admin'
+    
+    // Invitation info
+    invitedBy: a.string().required(),         // userId who sent invite
+    invitedByName: a.string(),
+    invitedAt: a.datetime().required(),
+    
+    // Acceptance
+    status: a.string().required(),            // 'pending' | 'accepted' | 'declined' | 'revoked'
+    acceptedAt: a.datetime(),
+    
+    // Token for email invite links
+    inviteToken: a.string(),
+    inviteExpiresAt: a.datetime(),
+  })
+    .secondaryIndexes((index) => [
+      index('documentId').sortKeys(['collaboratorEmail']).name('documentId-email-index'),
+      index('collaboratorEmail').sortKeys(['documentId']).name('email-documentId-index'),
+      index('collaboratorUserId').sortKeys(['documentId']).name('userId-documentId-index'),
+      index('inviteToken').name('inviteToken-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read', 'update']),
+    ]),
+
+  // Persistent share links (replaces localStorage)
+  ShareLink: a.model({
+    documentId: a.string().required(),
+    documentOwnerId: a.string().required(),
+    
+    // Link details
+    token: a.string().required(),             // UUID for the share URL
+    passcode: a.string().required(),          // 6-digit passcode
+    
+    // Access settings
+    accessLevel: a.string().required(),       // 'view' | 'comment' | 'edit'
+    
+    // Expiration
+    expiresAt: a.datetime().required(),
+    
+    // Usage tracking
+    accessCount: a.integer().default(0),
+    lastAccessedAt: a.datetime(),
+    lastAccessedBy: a.string(),
+    
+    // Status
+    isActive: a.boolean().default(true),
+    revokedAt: a.datetime(),
+    revokedBy: a.string(),
+  })
+    .secondaryIndexes((index) => [
+      index('documentId').name('documentId-index'),
+      index('token').name('token-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read', 'update']),
+    ]),
+
+  // ============================================
   // RTC-3: COMMENTS & VERSION HISTORY
   // ============================================
 

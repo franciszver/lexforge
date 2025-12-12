@@ -14,7 +14,7 @@ import {
     updateStatus,
     createSnapshot,
 } from '../features/documentSlice';
-import { toggleRightPanel, setShowShareModal, clearPendingInsertion } from '../features/uiSlice';
+import { toggleRightPanel, setShowShareModal, setShowInviteModal, setShowClauseBrowser, clearPendingInsertion } from '../features/uiSlice';
 import { generateSuggestions } from '../features/suggestionsSlice';
 import { RightPanel, StatusBar } from '../components';
 import { PresenceIndicator, usePresenceEditing } from '../components/PresenceIndicator';
@@ -24,7 +24,7 @@ import { useCursorSync } from '../hooks/useCursorSync';
 import { CollaborationCursor } from '../extensions/CollaborationCursor';
 import type { DocumentSyncState, UserPresence } from '../utils/presenceTypes';
 import {
-    FileText, LayoutList, Sparkles, Download, Share2,
+    FileText, LayoutList, Sparkles, Download, Share2, Users, BookOpen,
     Bold, Italic, List, ListOrdered, Undo, Redo, PanelRight, Save
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -208,6 +208,14 @@ export const Editor = () => {
         dispatch(setShowShareModal(true));
     }, [dispatch]);
     
+    const handleInvite = useCallback(() => {
+        dispatch(setShowInviteModal(true));
+    }, [dispatch]);
+    
+    const handleOpenClauses = useCallback(() => {
+        dispatch(setShowClauseBrowser(true));
+    }, [dispatch]);
+    
     // Handle presence updates (can be used for UI indicators)
     const handlePresenceChange = useCallback((_presences: UserPresence[]) => {
         // Presences are displayed in the PresenceIndicator component
@@ -351,7 +359,11 @@ export const Editor = () => {
                             <Download className="w-4 h-4" />
                         </button>
 
-                        <button onClick={handleShare} className="btn-ghost btn-sm" title="Share">
+                        <button onClick={handleInvite} className="btn-ghost btn-sm" title="Invite Collaborators">
+                            <Users className="w-4 h-4" />
+                        </button>
+
+                        <button onClick={handleShare} className="btn-ghost btn-sm" title="Share Link">
                             <Share2 className="w-4 h-4" />
                         </button>
 
@@ -438,6 +450,17 @@ export const Editor = () => {
                         title="Heading 3"
                     >
                         H3
+                    </button>
+                    
+                    {/* Clause Library */}
+                    <div className="h-5 w-px bg-slate-200 mx-2" />
+                    <button
+                        onClick={handleOpenClauses}
+                        className="p-2 rounded hover:bg-slate-100 text-slate-600 flex items-center gap-1"
+                        title="Insert Clause"
+                    >
+                        <BookOpen className="w-4 h-4" />
+                        <span className="text-xs">Clauses</span>
                     </button>
                 </div>
             )}

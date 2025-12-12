@@ -1,7 +1,11 @@
 import type { Handler } from 'aws-lambda';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const secretsClient = new SecretsManagerClient({ region: 'us-west-2' });
+const dynamoClient = new DynamoDBClient({ region: 'us-west-2' });
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 // Cache API keys to avoid repeated Secrets Manager calls
 let cachedOpenAIKey: string | null = null;
@@ -42,6 +46,124 @@ interface SuggestionContext {
     practiceArea?: string;
     formality?: string;
     riskAppetite?: string;
+    includeClauseSuggestions?: boolean;
+}
+
+interface ClauseMatch {
+    id: string;
+    title: string;
+    content: string;
+    category: string;
+    description?: string;
+    relevanceScore: number;
+}
+
+// Search for relevant clauses in the Clause library
+async function searchRelevantClauses(
+    documentContent: string,
+    context: SuggestionContext
+): Promise<ClauseMatch[]> {
+    try {
+        // Get the Clause table name from environment or construct it
+        const tableName = process.env.CLAUSE_TABLE_NAME || 'Clause-lexforge';
+        
+        // Scan clauses (in production, use OpenSearch or similar for better search)
+        const result = await docClient.send(new ScanCommand({
+            TableName: tableName,
+            FilterExpression: 'isPublished = :published',
+            ExpressionAttributeValues: {
+                ':published': true,
+            },
+            Limit: 100,
+        }));
+        
+        if (!result.Items || result.Items.length === 0) {
+            return [];
+        }
+        
+        // Simple keyword matching for relevance scoring
+        const keywords = extractKeywords(documentContent);
+        const docType = context.docType?.toLowerCase() || '';
+        const jurisdiction = context.jurisdiction?.toLowerCase() || '';
+        
+        const scoredClauses = result.Items.map((clause) => {
+            let score = 0;
+            const clauseContent = (clause.content || '').toLowerCase();
+            const clauseTitle = (clause.title || '').toLowerCase();
+            const clauseCategory = (clause.category || '').toLowerCase();
+            const clauseTags = parseJsonField<string[]>(clause.tags, []);
+            const clauseDocTypes = parseJsonField<string[]>(clause.documentTypes, []);
+            const clauseJurisdiction = (clause.jurisdiction || '').toLowerCase();
+            
+            // Score by keyword matches
+            for (const keyword of keywords) {
+                if (clauseTitle.includes(keyword)) score += 3;
+                if (clauseContent.includes(keyword)) score += 1;
+                if (clauseCategory.includes(keyword)) score += 2;
+                if (clauseTags.some(t => t.toLowerCase().includes(keyword))) score += 2;
+            }
+            
+            // Bonus for matching document type
+            if (docType && clauseDocTypes.some(dt => dt.toLowerCase().includes(docType))) {
+                score += 5;
+            }
+            
+            // Bonus for matching jurisdiction
+            if (jurisdiction && (clauseJurisdiction.includes(jurisdiction) || clauseJurisdiction === 'federal')) {
+                score += 3;
+            }
+            
+            // Boost by usage count
+            score += Math.min((clause.usageCount || 0) / 10, 5);
+            
+            return {
+                id: clause.id,
+                title: clause.title,
+                content: clause.content,
+                category: clause.category,
+                description: clause.description,
+                relevanceScore: score,
+            };
+        });
+        
+        // Return top 5 most relevant clauses
+        return scoredClauses
+            .filter(c => c.relevanceScore > 0)
+            .sort((a, b) => b.relevanceScore - a.relevanceScore)
+            .slice(0, 5);
+    } catch (error) {
+        console.warn('Error searching clauses:', error);
+        return [];
+    }
+}
+
+// Helper to extract keywords from document content
+function extractKeywords(text: string): string[] {
+    // Legal-specific keywords to look for
+    const legalTerms = [
+        'confidential', 'indemnif', 'terminat', 'liability', 'warrant',
+        'represent', 'covenant', 'agree', 'obligation', 'breach',
+        'damages', 'remedies', 'governing law', 'jurisdiction', 'arbitrat',
+        'force majeure', 'assign', 'notice', 'amend', 'waiv',
+        'intellectual property', 'proprietary', 'disclosure', 'non-compete',
+        'severab', 'entire agreement', 'counterpart', 'dispute',
+    ];
+    
+    const lowercaseText = text.toLowerCase();
+    return legalTerms.filter(term => lowercaseText.includes(term));
+}
+
+// Helper to parse JSON fields
+function parseJsonField<T>(value: unknown, defaultValue: T): T {
+    if (!value) return defaultValue;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as T;
+        } catch {
+            return defaultValue;
+        }
+    }
+    return value as T;
 }
 
 // Search for legal references using Brave Search API
@@ -206,16 +328,43 @@ export const handler: Handler = async (event) => {
             };
         }
 
-        // Search for relevant legal references
-        const searchResults = await searchLegalReferences(
-            plainText.substring(0, 200),
-            context?.jurisdiction || 'Federal'
-        );
+        // Search for relevant legal references and clauses in parallel
+        const [searchResults, relevantClauses] = await Promise.all([
+            searchLegalReferences(
+                plainText.substring(0, 200),
+                context?.jurisdiction || 'Federal'
+            ),
+            context?.includeClauseSuggestions !== false 
+                ? searchRelevantClauses(plainText, context || {})
+                : Promise.resolve([]),
+        ]);
 
         // Generate suggestions using OpenAI
         const suggestions = await generateWithOpenAI(plainText, context || {}, searchResults);
+        
+        // Convert relevant clauses to clause suggestions
+        const clauseSuggestions = relevantClauses.map((clause) => ({
+            id: crypto.randomUUID(),
+            type: 'clause',
+            title: `Insert: ${clause.title}`,
+            text: clause.description || `Consider adding a ${clause.category} clause to strengthen this document.`,
+            clauseId: clause.id,
+            clauseContent: clause.content,
+            clauseCategory: clause.category,
+            confidence: Math.min(0.95, 0.5 + clause.relevanceScore / 20),
+            sourceRefs: [],
+        }));
 
-        return { suggestions };
+        return { 
+            suggestions: [...suggestions, ...clauseSuggestions],
+            relevantClauses: relevantClauses.map(c => ({
+                id: c.id,
+                title: c.title,
+                category: c.category,
+                description: c.description,
+                relevanceScore: c.relevanceScore,
+            })),
+        };
     } catch (error) {
         console.error('Error in generate-suggestion handler:', error);
         

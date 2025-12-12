@@ -18,6 +18,8 @@ interface UIState {
   fontSize: FontSize;
   showNewDocModal: boolean;
   showShareModal: boolean;
+  showInviteModal: boolean;
+  showClauseBrowser: boolean;
   showDeleteConfirm: string | null; // documentId or null
   pendingInsertion: PendingInsertion | null; // Text to insert into editor
 }
@@ -28,6 +30,8 @@ const initialState: UIState = {
   fontSize: 'medium',
   showNewDocModal: false,
   showShareModal: false,
+  showInviteModal: false,
+  showClauseBrowser: false,
   showDeleteConfirm: null,
   pendingInsertion: null,
 };
@@ -54,6 +58,12 @@ const uiSlice = createSlice({
     setShowShareModal: (state, action: PayloadAction<boolean>) => {
       state.showShareModal = action.payload;
     },
+    setShowInviteModal: (state, action: PayloadAction<boolean>) => {
+      state.showInviteModal = action.payload;
+    },
+    setShowClauseBrowser: (state, action: PayloadAction<boolean>) => {
+      state.showClauseBrowser = action.payload;
+    },
     setShowDeleteConfirm: (state, action: PayloadAction<string | null>) => {
       state.showDeleteConfirm = action.payload;
     },
@@ -73,6 +83,8 @@ export const {
   setFontSize,
   setShowNewDocModal,
   setShowShareModal,
+  setShowInviteModal,
+  setShowClauseBrowser,
   setShowDeleteConfirm,
   setPendingInsertion,
   clearPendingInsertion,

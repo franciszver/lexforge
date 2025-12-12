@@ -121,6 +121,7 @@ vi.mock('aws-amplify/data', () => ({
 const renderEditor = (hasDocument = true) => {
     const initialDocument = hasDocument ? {
         id: 'test-123',
+        userId: 'test-user-123',
         title: 'Test Document',
         content: '<p>Initial Content</p>',
         status: 'draft' as const,
@@ -170,6 +171,8 @@ const renderEditor = (hasDocument = true) => {
                 fontSize: 'medium' as const,
                 showNewDocModal: false,
                 showShareModal: false,
+                showInviteModal: false,
+                showClauseBrowser: false,
                 showDeleteConfirm: null,
                 pendingInsertion: null,
             },

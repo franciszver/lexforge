@@ -139,6 +139,8 @@ const createTestStore = (isAuthenticated = true) => configureStore({
             fontSize: 'medium',
             showNewDocModal: false,
             showShareModal: false,
+            showInviteModal: false,
+            showClauseBrowser: false,
             showDeleteConfirm: null,
             pendingInsertion: null,
         },

@@ -155,7 +155,8 @@ export const CollaborationCursor = Extension.create<CollaborationCursorOptions>(
     },
     
     addProseMirrorPlugins() {
-        const { onCursorUpdate, throttleDelay, currentUserId } = this.options;
+        // Note: currentUserId is no longer used for filtering - we filter by sessionId in useCursorSync instead
+        const { onCursorUpdate, throttleDelay } = this.options;
         
         // Create throttled cursor update function
         const throttledUpdate = onCursorUpdate
@@ -175,10 +176,16 @@ export const CollaborationCursor = Extension.create<CollaborationCursorOptions>(
                             || this.options.cursors 
                             || [];
                         
-                        // Filter out current user's cursor
-                        const remoteCursors = currentUserId
-                            ? cursors.filter(c => c.id !== currentUserId)
-                            : cursors;
+                        // Note: We no longer filter by userId here because:
+                        // 1. The useCursorSync hook already filters by sessionId
+                        // 2. Filtering by userId prevents same-user multi-window collaboration
+                        // The cursors passed here are already "remote" cursors from other sessions
+                        const remoteCursors = cursors;
+                        
+                        // Debug: Log when cursors are being processed
+                        if (tr.getMeta(collaborationCursorPluginKey)) {
+                            console.log('[CollaborationCursor] Processing', remoteCursors.length, 'remote cursors, docSize:', newState.doc.content.size);
+                        }
                         
                         // Build decorations for remote cursors
                         const decorations: Decoration[] = [];
@@ -187,6 +194,8 @@ export const CollaborationCursor = Extension.create<CollaborationCursorOptions>(
                             // Validate position is within document bounds
                             const docSize = newState.doc.content.size;
                             const cursorPos = Math.min(Math.max(0, cursor.position), docSize);
+                            
+                            console.log('[CollaborationCursor] Creating decoration for', cursor.name, 'at position', cursorPos);
                             
                             // Add cursor decoration
                             decorations.push(createCursorDecoration(cursor, cursorPos));
@@ -202,6 +211,7 @@ export const CollaborationCursor = Extension.create<CollaborationCursorOptions>(
                             }
                         }
                         
+                        console.log('[CollaborationCursor] Created', decorations.length, 'decorations');
                         return DecorationSet.create(newState.doc, decorations);
                     },
                 },
@@ -249,6 +259,7 @@ export function updateCollaborationCursors(
     editor: { view: EditorView },
     cursors: CursorData[]
 ): void {
+    console.log('[CollaborationCursor] Updating decorations with', cursors.length, 'cursors');
     const tr = editor.view.state.tr;
     tr.setMeta(collaborationCursorPluginKey, { cursors });
     editor.view.dispatch(tr);

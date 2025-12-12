@@ -28,14 +28,53 @@ import {
     DOCUMENT_TYPES,
 } from '../utils/clauseTypes';
 import {
-    searchClauses,
+    searchClauses as searchClausesService,
     getPopularClauses,
     getRecentClauses,
     incrementClauseUsage,
     addToFavorites,
     removeFromFavorites,
-    getUserFavorites,
+    getUserFavoritesWithClauses,
+    type Clause as ServiceClause,
 } from '../utils/clauseService';
+
+// Helper to map service clause to component clause
+function mapServiceClauseToClause(sc: ServiceClause): Clause {
+    return {
+        id: sc.id,
+        title: sc.title,
+        content: sc.content,
+        description: sc.description,
+        category: sc.category,
+        subcategory: sc.subcategory,
+        tags: sc.tags || [],
+        jurisdiction: sc.jurisdiction,
+        documentTypes: sc.documentTypes || [],
+        usageCount: sc.usageCount,
+        lastUsedAt: sc.lastUsedAt,
+        variations: sc.variations || [],
+        placeholders: (sc.placeholders || []) as unknown as Clause['placeholders'],
+        isPublished: true,
+        isFavorite: false,
+        createdAt: sc.createdAt,
+        updatedAt: sc.updatedAt,
+    };
+}
+
+// Wrapper for searchClauses with proper typing
+async function searchClauses(params: { query?: string; category?: string; jurisdiction?: string; documentType?: string }): Promise<Clause[]> {
+    const results = await searchClausesService(params);
+    return results.map(mapServiceClauseToClause);
+}
+
+// Wrapper for getUserFavorites that returns the expected structure
+async function getUserFavorites(): Promise<Array<{ clause: Clause; favorite: { id: string } }>> {
+    const results = await getUserFavoritesWithClauses();
+    return results.map(r => ({
+        clause: mapServiceClauseToClause(r.clause),
+        favorite: { id: r.favoriteId },
+    }));
+}
 import { format } from 'date-fns';
 
 // ============================================

@@ -32,7 +32,8 @@ import {
   Plus,
   Check,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  BookOpen
 } from 'lucide-react';
 
 const suggestionCountOptions = [3, 5, 8, 10, 15];
@@ -323,12 +324,16 @@ export function SuggestionsPanel() {
                 onPin={() => dispatch(togglePin(suggestion.id))}
                 onToggleCollapse={() => dispatch(toggleCollapse(suggestion.id))}
                 onArchive={() => dispatch(archiveSuggestion(suggestion.id))}
-                onAccept={suggestion.replacementText ? () => {
-                  dispatch(setPendingInsertion({
-                    text: suggestion.replacementText!,
-                    suggestionId: suggestion.id,
-                  }));
-                  dispatch(archiveSuggestion(suggestion.id));
+                onAccept={(suggestion.replacementText || suggestion.clauseContent) ? () => {
+                  // Use clauseContent for clause suggestions, replacementText for others
+                  const textToInsert = suggestion.clauseContent || suggestion.replacementText;
+                  if (textToInsert) {
+                    dispatch(setPendingInsertion({
+                      text: textToInsert,
+                      suggestionId: suggestion.id,
+                    }));
+                    dispatch(archiveSuggestion(suggestion.id));
+                  }
                 } : undefined}
                 onFeedback={(feedback) => dispatch(setFeedback({ id: suggestion.id, feedback }))}
               />
@@ -406,6 +411,10 @@ interface SuggestionCardProps {
     createdAt: string;
     pinned: boolean;
     feedback?: FeedbackType;
+    // Clause-specific fields
+    clauseId?: string;
+    clauseContent?: string;
+    clauseCategory?: string;
   };
   isCollapsed: boolean;
   isArchived: boolean;
@@ -469,8 +478,14 @@ function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCo
           >
             <ChevronDown className="w-4 h-4" />
           </button>
-          <span className={`badge ${suggestion.type === 'structured' ? 'badge-primary' : 'badge-slate'}`}>
-            {suggestion.type}
+          <span className={`badge ${
+            suggestion.type === 'clause' 
+              ? 'bg-amber-100 text-amber-700' 
+              : suggestion.type === 'structured' 
+                ? 'badge-primary' 
+                : 'badge-slate'
+          }`}>
+            {suggestion.type === 'clause' ? '📚 clause' : suggestion.type}
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${severity.class}`}>
             {severity.label}
@@ -519,6 +534,33 @@ function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCo
             )}
           </div>
           <p className="text-sm text-green-800">{suggestion.replacementText}</p>
+        </div>
+      )}
+
+      {/* Clause content with Insert button */}
+      {suggestion.type === 'clause' && suggestion.clauseContent && (
+        <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-amber-600" />
+              <p className="text-xs font-medium text-amber-700">
+                {suggestion.clauseCategory || 'Clause'} Library
+              </p>
+            </div>
+            {onAccept && !isArchived && (
+              <button
+                onClick={onAccept}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Insert
+              </button>
+            )}
+          </div>
+          <div 
+            className="text-sm text-amber-800 prose prose-sm max-w-none line-clamp-4"
+            dangerouslySetInnerHTML={{ __html: suggestion.clauseContent }}
+          />
         </div>
       )}
 

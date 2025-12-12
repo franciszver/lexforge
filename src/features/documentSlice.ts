@@ -52,6 +52,7 @@ export interface ShareLink {
 
 export interface Document {
   id: string;
+  userId: string; // Owner of the document
   title: string;
   content: string;
   status: 'draft' | 'review' | 'final';
@@ -133,6 +134,7 @@ export const createDocument = createAsyncThunk(
       
       const document: Document = {
         id: draft.id,
+        userId: draft.userId || draft.owner || '', // Owner of the document
         title: draft.title || 'Untitled Document',
         content: draft.content || '',
         status: (draft.status as 'draft' | 'review' | 'final') || 'draft',
@@ -171,6 +173,7 @@ export const loadDocument = createAsyncThunk(
 
       const document: Document = {
         id: draft.id,
+        userId: draft.userId || draft.owner || '', // Owner of the document
         title: draft.title || 'Untitled Document',
         content: draft.content || '',
         status: (draft.status as 'draft' | 'review' | 'final') || 'draft',
@@ -255,6 +258,7 @@ export const loadAllDocuments = createAsyncThunk(
 
         return {
           id: draft.id,
+          userId: draft.userId || draft.owner || '', // Owner of the document
           title: draft.title || 'Untitled Document',
           content: draft.content || '',
           status: (draft.status as 'draft' | 'review' | 'final') || 'draft',
@@ -335,6 +339,7 @@ export const duplicateDocument = createAsyncThunk(
 
       const document: Document = {
         id: duplicate.id,
+        userId: duplicate.userId || duplicate.owner || '', // Owner of the document
         title: duplicate.title || 'Untitled Document',
         content: duplicate.content || '',
         status: (duplicate.status as 'draft' | 'review' | 'final') || 'draft',

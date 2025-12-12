@@ -15,7 +15,46 @@ import {
 } from 'lucide-react';
 import type { Clause } from '../utils/clauseTypes';
 import { CLAUSE_CATEGORIES } from '../utils/clauseTypes';
-import { getSuggestedClauses, getClausesByCategory } from '../utils/clauseService';
+import { searchClauses, type Clause as ServiceClause } from '../utils/clauseService';
+
+// Helper to map service clause to component clause
+function mapServiceClauseToClause(sc: ServiceClause): Clause {
+    return {
+        id: sc.id,
+        title: sc.title,
+        content: sc.content,
+        description: sc.description,
+        category: sc.category,
+        subcategory: sc.subcategory,
+        tags: sc.tags || [],
+        jurisdiction: sc.jurisdiction,
+        documentTypes: sc.documentTypes || [],
+        usageCount: sc.usageCount,
+        lastUsedAt: sc.lastUsedAt,
+        variations: sc.variations || [],
+        // Cast placeholders to the expected type - the data is compatible
+        placeholders: (sc.placeholders || []) as unknown as Clause['placeholders'],
+        isPublished: true,
+        isFavorite: false,
+        createdAt: sc.createdAt,
+        updatedAt: sc.updatedAt,
+    };
+}
+
+// Wrapper functions to match expected API
+async function getSuggestedClauses(params: { documentType?: string; jurisdiction?: string; limit?: number }): Promise<Clause[]> {
+    const results = await searchClauses({
+        documentType: params.documentType,
+        jurisdiction: params.jurisdiction,
+        limit: params.limit || 10,
+    });
+    return results.map(mapServiceClauseToClause);
+}
+
+async function getClausesByCategory(category: string): Promise<Clause[]> {
+    const results = await searchClauses({ category });
+    return results.map(mapServiceClauseToClause);
+}
 
 // ============================================
 // Types
@@ -145,12 +184,14 @@ export function ClauseSuggestions({
         
         setLoading(true);
         try {
-            const clauses = await getSuggestedClauses(
+            const clauses = await getSuggestedClauses({
                 documentType,
                 jurisdiction,
-                existingCategories
-            );
-            setSuggestions(clauses);
+                limit: 10,
+            });
+            // Filter out clauses from categories already in document
+            const filtered = clauses.filter(c => !existingCategories.includes(c.category));
+            setSuggestions(filtered);
         } catch (error) {
             console.error('Error loading suggestions:', error);
         } finally {

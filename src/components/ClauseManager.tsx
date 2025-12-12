@@ -28,12 +28,88 @@ import {
     DOCUMENT_TYPES,
 } from '../utils/clauseTypes';
 import {
-    createClause,
-    updateClause,
-    deleteClause,
-    getAllClauses,
-    getClauseCategoryCounts,
+    createClause as createClauseService,
+    updateClause as updateClauseService,
+    deleteClause as deleteClauseService,
+    searchClauses,
+    getCategories,
+    type Clause as ServiceClause,
 } from '../utils/clauseService';
+
+// Helper to map service clause to component clause
+function mapToClause(sc: ServiceClause): Clause {
+    return {
+        id: sc.id,
+        title: sc.title,
+        content: sc.content,
+        description: sc.description,
+        category: sc.category,
+        subcategory: sc.subcategory,
+        tags: sc.tags || [],
+        jurisdiction: sc.jurisdiction,
+        documentTypes: sc.documentTypes || [],
+        usageCount: sc.usageCount,
+        lastUsedAt: sc.lastUsedAt,
+        variations: sc.variations || [],
+        // Cast placeholders to the expected type - the data is compatible
+        placeholders: (sc.placeholders || []) as unknown as Clause['placeholders'],
+        isPublished: true,
+        isFavorite: false,
+        createdAt: sc.createdAt,
+        updatedAt: sc.updatedAt,
+    };
+}
+
+// Wrapper functions
+async function createClause(data: Omit<Clause, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>): Promise<Clause | null> {
+    try {
+        // Convert placeholders to service format
+        const serviceData = {
+            ...data,
+            placeholders: data.placeholders as unknown as ServiceClause['placeholders'],
+        };
+        const result = await createClauseService(serviceData);
+        return mapToClause(result);
+    } catch (error) {
+        console.error('Error creating clause:', error);
+        return null;
+    }
+}
+
+async function updateClause(id: string, data: Partial<Clause>): Promise<Clause | null> {
+    try {
+        // Convert placeholders to service format
+        const serviceData = {
+            ...data,
+            placeholders: data.placeholders as unknown as ServiceClause['placeholders'],
+        };
+        const result = await updateClauseService(id, serviceData);
+        return mapToClause(result);
+    } catch (error) {
+        console.error('Error updating clause:', error);
+        return null;
+    }
+}
+
+async function deleteClause(id: string): Promise<boolean> {
+    try {
+        await deleteClauseService(id);
+        return true;
+    } catch (error) {
+        console.error('Error deleting clause:', error);
+        return false;
+    }
+}
+
+async function getAllClauses(): Promise<Clause[]> {
+    const results = await searchClauses({ limit: 200 });
+    return results.map(mapToClause);
+}
+
+async function getClauseCategoryCounts(): Promise<{ category: string; count: number }[]> {
+    const categories = await getCategories();
+    return categories.map(c => ({ category: c.name, count: c.count }));
+}
 
 // ============================================
 // Sub-Components

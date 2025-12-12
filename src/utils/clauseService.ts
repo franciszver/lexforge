@@ -1,169 +1,141 @@
 /**
- * Clause Service
- * Handles CRUD operations for the clause library.
+ * Clause Library Service
+ * 
+ * Manages the searchable clause library for legal documents.
+ * Supports browsing, searching, and inserting clauses into documents.
  */
 
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
-import type {
-    Clause,
-    ClauseFilter,
-    ClauseSort,
-    ClauseSearchResult,
-    UserClauseFavorite,
-} from './clauseTypes';
-import {
-    matchesFilter,
-    sortClauses,
-} from './clauseTypes';
 
-// Lazy client initialization
-let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+// ============================================
+// Types
+// ============================================
+
+export interface Clause {
+    id: string;
+    title: string;
+    content: string;
+    description?: string;
+    category: string;
+    subcategory?: string;
+    tags: string[];
+    jurisdiction?: string;
+    documentTypes: string[];
+    usageCount: number;
+    lastUsedAt?: string;
+    variations: ClauseVariation[];
+    placeholders: ClausePlaceholder[];
+    isPublished: boolean;
+    isFavorite?: boolean;
+    author?: string;
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ClauseVariation {
+    jurisdiction: string;
+    content: string;
+    notes?: string;
+}
+
+export interface ClausePlaceholder {
+    name: string;
+    type: 'text' | 'date' | 'number' | 'select';
+    label: string;
+    required: boolean;
+    defaultValue?: string;
+    options?: string[];
+}
+
+export interface ClauseSearchParams {
+    query?: string;
+    category?: string;
+    jurisdiction?: string;
+    documentType?: string;
+    tags?: string[];
+    limit?: number;
+}
+
+export interface ClauseCategory {
+    name: string;
+    count: number;
+    subcategories?: string[];
+}
+
+// ============================================
+// Client
+// ============================================
+
+let client: ReturnType<typeof generateClient<Schema>> | null = null;
+
 function getClient() {
-    if (!_client) {
-        _client = generateClient<Schema>();
+    if (!client) {
+        client = generateClient<Schema>();
     }
-    return _client;
+    return client;
 }
 
 // ============================================
-// Helper Functions
+// Clause Operations
 // ============================================
 
-function parseJsonField<T>(field: unknown, defaultValue: T): T {
-    if (!field) return defaultValue;
-    if (typeof field === 'string') {
-        try {
-            return JSON.parse(field) as T;
-        } catch {
-            return defaultValue;
-        }
-    }
-    return field as T;
-}
-
-function mapClauseFromDB(data: Record<string, unknown>): Clause {
-    return {
-        id: data.id as string,
-        title: data.title as string,
-        content: data.content as string,
-        description: data.description as string | undefined,
-        category: data.category as string,
-        subcategory: data.subcategory as string | undefined,
-        tags: parseJsonField(data.tags, []),
-        jurisdiction: data.jurisdiction as string | undefined,
-        documentTypes: parseJsonField(data.documentTypes, []),
-        usageCount: (data.usageCount as number) || 0,
-        lastUsedAt: data.lastUsedAt as string | undefined,
-        variations: parseJsonField(data.variations, []),
-        author: data.author as string | undefined,
-        isPublished: (data.isPublished as boolean) ?? true,
-        isFavorite: data.isFavorite as boolean | undefined,
-        notes: data.notes as string | undefined,
-        placeholders: parseJsonField(data.placeholders, []),
-        createdAt: data.createdAt as string,
-        updatedAt: data.updatedAt as string,
+/**
+ * Search clauses with filters
+ */
+export async function searchClauses(params: ClauseSearchParams): Promise<Clause[]> {
+    const client = getClient();
+    
+    // Build filter
+    const filter: Record<string, unknown> = {
+        isPublished: { eq: true },
     };
-}
-
-// ============================================
-// CRUD Operations
-// ============================================
-
-/**
- * Create a new clause
- */
-export async function createClause(clause: Omit<Clause, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>): Promise<Clause | null> {
-    const client = getClient();
-
-    try {
-        const { data, errors } = await client.models.Clause.create({
-            title: clause.title,
-            content: clause.content,
-            description: clause.description,
-            category: clause.category,
-            subcategory: clause.subcategory,
-            tags: JSON.stringify(clause.tags),
-            jurisdiction: clause.jurisdiction,
-            documentTypes: JSON.stringify(clause.documentTypes),
-            usageCount: 0,
-            variations: JSON.stringify(clause.variations),
-            author: clause.author,
-            isPublished: clause.isPublished,
-            notes: clause.notes,
-            placeholders: JSON.stringify(clause.placeholders),
-        });
-
-        if (errors) {
-            console.error('Error creating clause:', errors);
-            return null;
-        }
-
-        return mapClauseFromDB(data as Record<string, unknown>);
-    } catch (error) {
-        console.error('Error in createClause:', error);
-        return null;
+    
+    if (params.category) {
+        filter.category = { eq: params.category };
     }
-}
-
-/**
- * Update an existing clause
- */
-export async function updateClause(id: string, updates: Partial<Omit<Clause, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Clause | null> {
-    const client = getClient();
-
-    try {
-        const updateData: Record<string, unknown> = { id };
-
-        if (updates.title !== undefined) updateData.title = updates.title;
-        if (updates.content !== undefined) updateData.content = updates.content;
-        if (updates.description !== undefined) updateData.description = updates.description;
-        if (updates.category !== undefined) updateData.category = updates.category;
-        if (updates.subcategory !== undefined) updateData.subcategory = updates.subcategory;
-        if (updates.tags !== undefined) updateData.tags = JSON.stringify(updates.tags);
-        if (updates.jurisdiction !== undefined) updateData.jurisdiction = updates.jurisdiction;
-        if (updates.documentTypes !== undefined) updateData.documentTypes = JSON.stringify(updates.documentTypes);
-        if (updates.usageCount !== undefined) updateData.usageCount = updates.usageCount;
-        if (updates.lastUsedAt !== undefined) updateData.lastUsedAt = updates.lastUsedAt;
-        if (updates.variations !== undefined) updateData.variations = JSON.stringify(updates.variations);
-        if (updates.author !== undefined) updateData.author = updates.author;
-        if (updates.isPublished !== undefined) updateData.isPublished = updates.isPublished;
-        if (updates.notes !== undefined) updateData.notes = updates.notes;
-        if (updates.placeholders !== undefined) updateData.placeholders = JSON.stringify(updates.placeholders);
-
-        const { data, errors } = await client.models.Clause.update(updateData as Parameters<typeof client.models.Clause.update>[0]);
-
-        if (errors) {
-            console.error('Error updating clause:', errors);
-            return null;
-        }
-
-        return mapClauseFromDB(data as Record<string, unknown>);
-    } catch (error) {
-        console.error('Error in updateClause:', error);
-        return null;
+    
+    if (params.jurisdiction) {
+        filter.jurisdiction = { eq: params.jurisdiction };
     }
-}
-
-/**
- * Delete a clause
- */
-export async function deleteClause(id: string): Promise<boolean> {
-    const client = getClient();
-
-    try {
-        const { errors } = await client.models.Clause.delete({ id });
-
-        if (errors) {
-            console.error('Error deleting clause:', errors);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error in deleteClause:', error);
-        return false;
+    
+    const result = await client.models.Clause.list({
+        filter,
+        limit: params.limit || 50,
+    });
+    
+    let clauses = result.data.map(mapClause);
+    
+    // Client-side search if query provided
+    if (params.query) {
+        const query = params.query.toLowerCase();
+        clauses = clauses.filter(c => 
+            c.title.toLowerCase().includes(query) ||
+            c.content.toLowerCase().includes(query) ||
+            c.description?.toLowerCase().includes(query) ||
+            c.tags?.some(t => t.toLowerCase().includes(query))
+        );
     }
+    
+    // Filter by document type if provided
+    if (params.documentType) {
+        clauses = clauses.filter(c => 
+            !c.documentTypes || c.documentTypes.includes(params.documentType!)
+        );
+    }
+    
+    // Filter by tags if provided
+    if (params.tags && params.tags.length > 0) {
+        clauses = clauses.filter(c => 
+            c.tags?.some(t => params.tags!.includes(t))
+        );
+    }
+    
+    // Sort by usage count (most popular first)
+    clauses.sort((a, b) => b.usageCount - a.usageCount);
+    
+    return clauses;
 }
 
 /**
@@ -171,312 +143,299 @@ export async function deleteClause(id: string): Promise<boolean> {
  */
 export async function getClause(id: string): Promise<Clause | null> {
     const client = getClient();
-
-    try {
-        const { data, errors } = await client.models.Clause.get({ id });
-
-        if (errors || !data) {
-            console.error('Error fetching clause:', errors);
-            return null;
-        }
-
-        return mapClauseFromDB(data as Record<string, unknown>);
-    } catch (error) {
-        console.error('Error in getClause:', error);
-        return null;
-    }
+    
+    const result = await client.models.Clause.get({ id });
+    
+    if (!result.data) return null;
+    
+    return mapClause(result.data);
 }
 
 /**
- * Search clauses with filtering and sorting
+ * Get all categories with counts
  */
-export async function searchClauses(
-    filter?: ClauseFilter,
-    sort?: ClauseSort,
-    limit: number = 50,
-    nextToken?: string
-): Promise<ClauseSearchResult> {
+export async function getCategories(): Promise<ClauseCategory[]> {
     const client = getClient();
-
-    try {
-        let result;
-
-        // Use GSI for category or jurisdiction filtering when possible
-        if (filter?.category && !filter.searchQuery) {
-            result = await client.models.Clause.listClauseByCategoryAndTitle(
-                { category: filter.category },
-                { limit, nextToken: nextToken || undefined }
-            );
-        } else if (filter?.jurisdiction && !filter.searchQuery) {
-            result = await client.models.Clause.listClauseByJurisdictionAndCategory(
-                { jurisdiction: filter.jurisdiction },
-                { limit, nextToken: nextToken || undefined }
-            );
-        } else {
-            // Default: list all
-            result = await client.models.Clause.list({
-                limit: limit * 2, // Fetch more for client-side filtering
-                nextToken: nextToken || undefined,
-            });
-        }
-
-        if (result.errors) {
-            console.error('Error searching clauses:', result.errors);
-            return { clauses: [], totalCount: 0 };
-        }
-
-        let clauses = (result.data || []).map(d => mapClauseFromDB(d as Record<string, unknown>));
-
-        // Apply client-side filtering for complex filters
-        if (filter) {
-            clauses = clauses.filter(clause => matchesFilter(clause, filter));
-        }
-
-        // Apply sorting
-        if (sort) {
-            clauses = sortClauses(clauses, sort);
-        } else {
-            // Default sort by title
-            clauses = sortClauses(clauses, { field: 'title', direction: 'asc' });
-        }
-
-        return {
-            clauses: clauses.slice(0, limit),
-            totalCount: clauses.length,
-            nextToken: result.nextToken || undefined,
-        };
-    } catch (error) {
-        console.error('Error in searchClauses:', error);
-        return { clauses: [], totalCount: 0 };
+    
+    const result = await client.models.Clause.list({
+        filter: { isPublished: { eq: true } },
+    });
+    
+    // Group by category
+    const categoryMap = new Map<string, number>();
+    
+    for (const clause of result.data) {
+        const category = clause.category || 'Uncategorized';
+        categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
     }
+    
+    return Array.from(categoryMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
- * Get all clauses (for admin)
+ * Increment usage count when a clause is inserted
  */
-export async function getAllClauses(): Promise<Clause[]> {
+export async function recordClauseUsage(clauseId: string): Promise<void> {
     const client = getClient();
-    const allClauses: Clause[] = [];
-    let nextToken: string | undefined;
-
-    try {
-        do {
-            const { data, errors, nextToken: newToken } = await client.models.Clause.list({
-                limit: 100,
-                nextToken,
-            });
-
-            if (errors) {
-                console.error('Error fetching all clauses:', errors);
-                break;
-            }
-
-            const clauses = (data || []).map(d => mapClauseFromDB(d as Record<string, unknown>));
-            allClauses.push(...clauses);
-            nextToken = newToken || undefined;
-        } while (nextToken);
-
-        return sortClauses(allClauses, { field: 'category', direction: 'asc' });
-    } catch (error) {
-        console.error('Error in getAllClauses:', error);
-        return [];
-    }
+    
+    const clause = await client.models.Clause.get({ id: clauseId });
+    if (!clause.data) return;
+    
+    await client.models.Clause.update({
+        id: clauseId,
+        usageCount: (clause.data.usageCount || 0) + 1,
+        lastUsedAt: new Date().toISOString(),
+    });
+    
+    console.log('[Clause] Recorded usage for clause:', clauseId);
 }
 
 /**
- * Increment usage count for a clause
+ * Toggle favorite status for current user
  */
-export async function incrementClauseUsage(id: string): Promise<void> {
+export async function toggleFavorite(clauseId: string): Promise<boolean> {
     const client = getClient();
-
-    try {
-        // Get current clause
-        const { data: clause } = await client.models.Clause.get({ id });
-        if (!clause) return;
-
-        // Update usage
-        await client.models.Clause.update({
-            id,
-            usageCount: ((clause.usageCount as number) || 0) + 1,
-            lastUsedAt: new Date().toISOString(),
+    
+    // Check if already favorited
+    const existing = await client.models.UserClauseFavorite.list({
+        filter: { clauseId: { eq: clauseId } },
+    });
+    
+    if (existing.data.length > 0) {
+        // Remove favorite
+        await client.models.UserClauseFavorite.delete({ id: existing.data[0].id });
+        return false;
+    } else {
+        // Add favorite
+        await client.models.UserClauseFavorite.create({
+            clauseId,
         });
-    } catch (error) {
-        console.error('Error incrementing clause usage:', error);
+        return true;
     }
+}
+
+/**
+ * Get user's favorite clause IDs
+ */
+export async function getUserFavorites(): Promise<string[]> {
+    const client = getClient();
+    
+    const result = await client.models.UserClauseFavorite.list();
+    
+    return result.data.map(f => f.clauseId);
+}
+
+// ============================================
+// Admin Operations
+// ============================================
+
+/**
+ * Create a new clause (admin only)
+ */
+export async function createClause(data: Omit<Clause, 'id' | 'usageCount' | 'createdAt' | 'updatedAt'>): Promise<Clause> {
+    const client = getClient();
+    
+    const result = await client.models.Clause.create({
+        title: data.title,
+        content: data.content,
+        description: data.description,
+        category: data.category,
+        subcategory: data.subcategory,
+        tags: data.tags ? JSON.stringify(data.tags) : null,
+        jurisdiction: data.jurisdiction,
+        documentTypes: data.documentTypes ? JSON.stringify(data.documentTypes) : null,
+        usageCount: 0,
+        variations: data.variations ? JSON.stringify(data.variations) : null,
+        placeholders: data.placeholders ? JSON.stringify(data.placeholders) : null,
+        isPublished: true,
+    });
+    
+    if (!result.data) {
+        throw new Error('Failed to create clause');
+    }
+    
+    return mapClause(result.data);
+}
+
+/**
+ * Update an existing clause (admin only)
+ */
+export async function updateClause(id: string, data: Partial<Omit<Clause, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Clause> {
+    const client = getClient();
+    
+    const updateData: Record<string, unknown> = { id };
+    
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.content !== undefined) updateData.content = data.content;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.subcategory !== undefined) updateData.subcategory = data.subcategory;
+    if (data.tags !== undefined) updateData.tags = JSON.stringify(data.tags);
+    if (data.jurisdiction !== undefined) updateData.jurisdiction = data.jurisdiction;
+    if (data.documentTypes !== undefined) updateData.documentTypes = JSON.stringify(data.documentTypes);
+    if (data.variations !== undefined) updateData.variations = JSON.stringify(data.variations);
+    if (data.placeholders !== undefined) updateData.placeholders = JSON.stringify(data.placeholders);
+    
+    const result = await client.models.Clause.update(updateData as Parameters<typeof client.models.Clause.update>[0]);
+    
+    if (!result.data) {
+        throw new Error('Failed to update clause');
+    }
+    
+    return mapClause(result.data);
+}
+
+/**
+ * Delete a clause (admin only)
+ */
+export async function deleteClause(id: string): Promise<void> {
+    const client = getClient();
+    
+    await client.models.Clause.delete({ id });
 }
 
 /**
  * Get popular clauses (most used)
  */
 export async function getPopularClauses(limit: number = 10): Promise<Clause[]> {
-    const result = await searchClauses(
-        { isPublished: true },
-        { field: 'usageCount', direction: 'desc' },
-        limit
-    );
-    return result.clauses;
+    const clauses = await searchClauses({ limit: limit * 2 });
+    return clauses
+        .sort((a, b) => b.usageCount - a.usageCount)
+        .slice(0, limit);
 }
 
 /**
  * Get recently used clauses
  */
 export async function getRecentClauses(limit: number = 10): Promise<Clause[]> {
-    const result = await searchClauses(
-        { isPublished: true },
-        { field: 'lastUsedAt', direction: 'desc' },
-        limit
-    );
-    return result.clauses.filter(c => c.lastUsedAt);
-}
-
-// ============================================
-// User Favorites
-// ============================================
-
-/**
- * Add a clause to user's favorites
- */
-export async function addToFavorites(clauseId: string, notes?: string): Promise<UserClauseFavorite | null> {
-    const client = getClient();
-
-    try {
-        const { data, errors } = await client.models.UserClauseFavorite.create({
-            clauseId,
-            notes,
-        });
-
-        if (errors) {
-            console.error('Error adding to favorites:', errors);
-            return null;
-        }
-
-        return {
-            id: data!.id,
-            clauseId: data!.clauseId,
-            notes: data!.notes || undefined,
-            createdAt: data!.createdAt,
-        };
-    } catch (error) {
-        console.error('Error in addToFavorites:', error);
-        return null;
-    }
+    const clauses = await searchClauses({ limit: limit * 2 });
+    return clauses
+        .filter(c => c.lastUsedAt)
+        .sort((a, b) => {
+            const dateA = new Date(a.lastUsedAt || 0).getTime();
+            const dateB = new Date(b.lastUsedAt || 0).getTime();
+            return dateB - dateA;
+        })
+        .slice(0, limit);
 }
 
 /**
- * Remove a clause from user's favorites
+ * Increment clause usage count
  */
-export async function removeFromFavorites(favoriteId: string): Promise<boolean> {
-    const client = getClient();
-
-    try {
-        const { errors } = await client.models.UserClauseFavorite.delete({ id: favoriteId });
-
-        if (errors) {
-            console.error('Error removing from favorites:', errors);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error in removeFromFavorites:', error);
-        return false;
-    }
+export async function incrementClauseUsage(clauseId: string): Promise<void> {
+    return recordClauseUsage(clauseId);
 }
 
 /**
- * Get user's favorite clauses
+ * Add clause to favorites
  */
-export async function getUserFavorites(): Promise<{ favorite: UserClauseFavorite; clause: Clause }[]> {
+export async function addToFavorites(clauseId: string): Promise<string> {
     const client = getClient();
-
-    try {
-        const { data: favorites, errors } = await client.models.UserClauseFavorite.list();
-
-        if (errors) {
-            console.error('Error fetching user favorites:', errors);
-            return [];
-        }
-
-        const results: { favorite: UserClauseFavorite; clause: Clause }[] = [];
-
-        for (const fav of favorites || []) {
-            const clause = await getClause(fav.clauseId);
-            if (clause) {
-                results.push({
-                    favorite: {
-                        id: fav.id,
-                        clauseId: fav.clauseId,
-                        notes: fav.notes || undefined,
-                        createdAt: fav.createdAt,
-                    },
-                    clause,
-                });
-            }
-        }
-
-        return results;
-    } catch (error) {
-        console.error('Error in getUserFavorites:', error);
-        return [];
-    }
+    
+    const result = await client.models.UserClauseFavorite.create({
+        clauseId,
+    });
+    
+    return result.data?.id || '';
 }
 
-// ============================================
-// Context-Based Suggestions
-// ============================================
+/**
+ * Remove clause from favorites
+ */
+export async function removeFromFavorites(favoriteId: string): Promise<void> {
+    const client = getClient();
+    
+    await client.models.UserClauseFavorite.delete({ id: favoriteId });
+}
+
+/**
+ * Get user's favorites with clause data
+ */
+export async function getUserFavoritesWithClauses(): Promise<Array<{ clause: Clause; favoriteId: string }>> {
+    const client = getClient();
+    
+    const favorites = await client.models.UserClauseFavorite.list();
+    const result: Array<{ clause: Clause; favoriteId: string }> = [];
+    
+    for (const fav of favorites.data) {
+        const clause = await getClause(fav.clauseId);
+        if (clause) {
+            result.push({ clause, favoriteId: fav.id });
+        }
+    }
+    
+    return result;
+}
 
 /**
  * Get suggested clauses based on document context
  */
 export async function getSuggestedClauses(
-    documentType: string,
+    documentType?: string,
     jurisdiction?: string,
-    existingClauseCategories?: string[]
+    excludeCategories?: string[]
 ): Promise<Clause[]> {
-    // Get clauses matching the document type
-    const result = await searchClauses({
+    const clauses = await searchClauses({
         documentType,
         jurisdiction,
-        isPublished: true,
+        limit: 20,
     });
-
-    let suggestions = result.clauses;
-
-    // Filter out categories already in the document
-    if (existingClauseCategories && existingClauseCategories.length > 0) {
-        suggestions = suggestions.filter(
-            clause => !existingClauseCategories.includes(clause.category)
-        );
+    
+    if (excludeCategories && excludeCategories.length > 0) {
+        return clauses.filter(c => !excludeCategories.includes(c.category));
     }
-
-    // Sort by usage count (most popular first)
-    suggestions = sortClauses(suggestions, { field: 'usageCount', direction: 'desc' });
-
-    // Return top suggestions
-    return suggestions.slice(0, 10);
+    
+    return clauses;
 }
 
 /**
  * Get clauses by category
  */
 export async function getClausesByCategory(category: string): Promise<Clause[]> {
-    const result = await searchClauses({ category, isPublished: true });
-    return result.clauses;
+    return searchClauses({ category });
 }
 
-/**
- * Get clause categories with counts
- */
-export async function getClauseCategoryCounts(): Promise<{ category: string; count: number }[]> {
-    const clauses = await getAllClauses();
-    const counts: Record<string, number> = {};
+// ============================================
+// Helpers
+// ============================================
 
-    clauses.forEach(clause => {
-        counts[clause.category] = (counts[clause.category] || 0) + 1;
-    });
-
-    return Object.entries(counts)
-        .map(([category, count]) => ({ category, count }))
-        .sort((a, b) => b.count - a.count);
+function parseJsonField<T>(value: unknown, defaultValue: T): T {
+    if (!value) return defaultValue;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as T;
+        } catch {
+            return defaultValue;
+        }
+    }
+    return value as T;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapClause(data: any): Clause {
+    return {
+        id: data.id,
+        title: data.title,
+        content: data.content,
+        description: data.description || undefined,
+        category: data.category,
+        subcategory: data.subcategory || undefined,
+        tags: parseJsonField<string[]>(data.tags, []),
+        jurisdiction: data.jurisdiction || undefined,
+        documentTypes: parseJsonField<string[]>(data.documentTypes, []),
+        usageCount: data.usageCount || 0,
+        lastUsedAt: data.lastUsedAt || undefined,
+        variations: parseJsonField<ClauseVariation[]>(data.variations, []),
+        placeholders: parseJsonField<ClausePlaceholder[]>(data.placeholders, []),
+        isPublished: data.isPublished ?? true,
+        isFavorite: data.isFavorite ?? false,
+        author: data.author || undefined,
+        notes: data.notes || undefined,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+    };
+}
+
+// Note: Sample clauses should be seeded to DynamoDB directly via Admin UI or seed script
