@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { generateSuggestion } from '../functions/generate-suggestion/resource';
+import { generateArgument } from '../functions/generate-argument/resource';
 import { auditLogger } from '../functions/audit-logger/resource';
 
 
@@ -254,7 +255,7 @@ const schema = a.schema({
       allow.group('Admins').to(['read']), // Admins can read all events for analytics
     ]),
 
-  // Custom Query to call Lambda
+  // Custom Query to call Lambda for suggestions
   askAI: a.query()
     .arguments({
       text: a.string(),
@@ -262,6 +263,28 @@ const schema = a.schema({
     })
     .returns(a.json())
     .handler(a.handler.function(generateSuggestion))
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Custom Query to generate legal arguments
+  generateArguments: a.query()
+    .arguments({
+      mode: a.string().required(),     // 'generate' | 'counter' | 'analyze' | 'strengthen'
+      facts: a.json(),                 // Array of facts
+      keyFacts: a.json(),              // Array of key facts
+      legalPrinciples: a.json(),       // Array of legal principles
+      jurisdiction: a.string(),
+      documentType: a.string(),
+      practiceArea: a.string(),
+      desiredOutcome: a.string(),
+      clientPosition: a.string(),
+      opposingArguments: a.json(),     // Array of known opposing arguments
+      constraints: a.json(),           // Array of constraints
+      tone: a.string(),                // 'aggressive' | 'moderate' | 'conservative'
+      existingArgument: a.string(),    // For counter/analyze modes
+      existingOutline: a.json(),       // For analyze/strengthen modes
+    })
+    .returns(a.json())
+    .handler(a.handler.function(generateArgument))
     .authorization((allow) => [allow.authenticated()]),
 });
 

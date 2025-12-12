@@ -4,10 +4,11 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 import { 
     Plus, ArrowLeft, Edit2, Trash2, X, FileText, Users, Settings, 
-    BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen, Activity, PieChart
+    BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen, Activity, PieChart, Scale
 } from 'lucide-react';
 import { AuditLogViewer } from '../components/AuditLogViewer';
 import { AuditReportGenerator } from '../components/AuditReportGenerator';
+import { ArgumentBuilder } from '../components/ArgumentBuilder';
 
 // Lazy client initialization to avoid "Amplify not configured" errors
 let _client: ReturnType<typeof generateClient<Schema>> | null = null;
@@ -59,7 +60,7 @@ export const Admin = () => {
     const [loadingStats, setLoadingStats] = useState(true);
     
     // Tab state
-    const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'audit' | 'reports'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'audit' | 'reports' | 'arguments'>('overview');
     
     // Modal state
     const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -374,6 +375,17 @@ export const Admin = () => {
                             <PieChart className="w-4 h-4 inline mr-2" />
                             Reports
                         </button>
+                        <button
+                            onClick={() => setActiveTab('arguments')}
+                            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                                activeTab === 'arguments'
+                                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                        >
+                            <Scale className="w-4 h-4 inline mr-2" />
+                            Arguments
+                        </button>
                     </nav>
                 </div>
             </header>
@@ -391,6 +403,13 @@ export const Admin = () => {
                 {activeTab === 'reports' && (
                     <div className="card p-6">
                         <AuditReportGenerator />
+                    </div>
+                )}
+
+                {/* Arguments Tab */}
+                {activeTab === 'arguments' && (
+                    <div className="card p-0 min-h-[600px]">
+                        <ArgumentBuilder />
                     </div>
                 )}
 
