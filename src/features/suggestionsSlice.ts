@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
+import { auditAI } from '../utils/audit';
 
 // Lazy client initialization to avoid "Amplify not configured" errors
 let _client: ReturnType<typeof generateClient<Schema>> | null = null;
@@ -86,11 +87,28 @@ interface DocumentContext {
     practiceArea?: string;
 }
 
+// Thunk for submitting feedback with audit logging
+export const submitFeedback = createAsyncThunk(
+    'suggestions/submitFeedback',
+    async (
+        { suggestionId, feedback }: { suggestionId: string; feedback: 'up' | 'down' },
+        { dispatch }
+    ) => {
+        // Dispatch the reducer action to update state
+        dispatch(setFeedbackInternal({ id: suggestionId, feedback }));
+        
+        // Fire audit event (fire-and-forget)
+        auditAI.feedbackSubmitted(suggestionId, feedback);
+        
+        return { suggestionId, feedback };
+    }
+);
+
 // Real suggestion generation via Amplify Lambda
 export const generateSuggestions = createAsyncThunk(
     'suggestions/generate',
     async (
-        { content, appendMode, context }: { documentId: string; content: string; appendMode?: boolean; context?: DocumentContext },
+        { documentId, content, appendMode, context }: { documentId: string; content: string; appendMode?: boolean; context?: DocumentContext },
         { getState, rejectWithValue }
     ) => {
         try {
@@ -148,6 +166,7 @@ export const generateSuggestions = createAsyncThunk(
             return {
                 suggestions,
                 appendMode: appendMode ?? false,
+                documentId,
             };
         } catch (error) {
             console.error('Error generating suggestions:', error);
@@ -175,7 +194,8 @@ const suggestionsSlice = createSlice({
                 suggestion.pinned = !suggestion.pinned;
             }
         },
-        setFeedback: (state, action: PayloadAction<{ id: string; feedback: FeedbackType }>) => {
+        // Internal reducer - use submitFeedback thunk instead for audit logging
+        setFeedbackInternal: (state, action: PayloadAction<{ id: string; feedback: FeedbackType }>) => {
             const suggestion = state.suggestions.find(s => s.id === action.payload.id);
             if (suggestion) {
                 suggestion.feedback = action.payload.feedback;
@@ -244,6 +264,12 @@ const suggestionsSlice = createSlice({
                 }
                 state.lastGeneratedAt = new Date().toISOString();
                 state.collapsedIds = [];
+                // Audit: AI suggestions generated
+                auditAI.suggestionsGenerated(
+                    action.payload.documentId,
+                    action.payload.suggestions.length,
+                    { appendMode: action.payload.appendMode }
+                );
             })
             .addCase(generateSuggestions.rejected, (state, action) => {
                 state.isGenerating = false;
@@ -257,7 +283,7 @@ export const {
     setApproverPov,
     setSuggestionCount,
     togglePin,
-    setFeedback,
+    setFeedbackInternal,
     archiveSuggestion,
     unarchiveSuggestion,
     removeSuggestion,
@@ -266,6 +292,10 @@ export const {
     expandAll,
     clearSuggestions,
 } = suggestionsSlice.actions;
+
+// Re-export setFeedbackInternal as setFeedback for backwards compatibility
+// but prefer using submitFeedback thunk for new code
+export const setFeedback = setFeedbackInternal;
 
 export default suggestionsSlice.reducer;
 

@@ -11,6 +11,30 @@ import { Editor } from './Editor';
 
 // --- MOCKS ---
 
+// 0. Mock audit utilities to prevent side effects during tests
+vi.mock('../utils/audit', () => ({
+    auditDocument: {
+        created: vi.fn(),
+        read: vi.fn(),
+        updated: vi.fn(),
+        deleted: vi.fn(),
+        exported: vi.fn(),
+        shared: vi.fn(),
+        duplicated: vi.fn(),
+    },
+    auditAI: {
+        suggestionsGenerated: vi.fn(),
+        suggestionAccepted: vi.fn(),
+        suggestionRejected: vi.fn(),
+        feedbackSubmitted: vi.fn(),
+    },
+    auditSnapshot: {
+        created: vi.fn(),
+        restored: vi.fn(),
+    },
+    dispatchAuditEvent: vi.fn(),
+}));
+
 // 1. Mock TipTap
 const mockGetHTML = vi.fn(() => '<p>Mock Content</p>');
 const mockGetText = vi.fn(() => 'Mock Content');

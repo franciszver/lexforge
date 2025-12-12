@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/tool
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 import { v4 as uuidv4 } from 'uuid';
+import { auditDocument, auditSnapshot } from '../utils/audit';
 
 // Lazy client initialization to avoid "Amplify not configured" errors
 let _client: ReturnType<typeof generateClient<Schema>> | null = null;
@@ -429,6 +430,23 @@ export const createShareLink = createAsyncThunk(
   }
 );
 
+// Thunk for restoring snapshots with audit logging
+export const restoreSnapshotWithAudit = createAsyncThunk(
+  'document/restoreSnapshotWithAudit',
+  async (
+    { snapshot, documentId }: { snapshot: Snapshot; documentId: string },
+    { dispatch }
+  ) => {
+    // Dispatch the reducer action to update state
+    dispatch(restoreSnapshotInternal(snapshot));
+    
+    // Fire audit event (fire-and-forget)
+    auditSnapshot.restored(documentId, snapshot.id);
+    
+    return snapshot;
+  }
+);
+
 const documentSlice = createSlice({
   name: 'document',
   initialState,
@@ -459,7 +477,8 @@ const documentSlice = createSlice({
       state.snapshots = [];
       state.isDirty = false;
     },
-    restoreSnapshot: (state, action: PayloadAction<Snapshot>) => {
+    // Internal reducer - use restoreSnapshotWithAudit thunk instead for audit logging
+    restoreSnapshotInternal: (state, action: PayloadAction<Snapshot>) => {
       if (state.currentDocument) {
         state.currentDocument.content = action.payload.content;
         state.isDirty = true;
@@ -479,6 +498,12 @@ const documentSlice = createSlice({
         state.allDocuments = [action.payload, ...state.allDocuments];
         state.snapshots = [];
         state.isDirty = false;
+        // Audit: Document created
+        auditDocument.created(action.payload.id, {
+          title: action.payload.title,
+          docType: action.payload.docType,
+          jurisdiction: action.payload.jurisdiction,
+        });
       })
       .addCase(createDocument.rejected, (state, action) => {
         state.loading = false;
@@ -493,6 +518,8 @@ const documentSlice = createSlice({
         state.loading = false;
         state.currentDocument = action.payload;
         state.isDirty = false;
+        // Audit: Document read
+        auditDocument.read(action.payload.id);
       })
       .addCase(loadDocument.rejected, (state, action) => {
         state.loading = false;
@@ -512,6 +539,13 @@ const documentSlice = createSlice({
         const idx = state.allDocuments.findIndex(d => d.id === action.payload.document.id);
         if (idx !== -1) {
           state.allDocuments[idx] = action.payload.document;
+        }
+        // Audit: Document updated (only for manual saves to avoid noise)
+        if (!action.payload.isAutosave) {
+          auditDocument.updated(action.payload.document.id, {
+            title: action.payload.document.title,
+            status: action.payload.document.status,
+          });
         }
       })
       .addCase(saveDocument.rejected, (state, action) => {
@@ -539,10 +573,14 @@ const documentSlice = createSlice({
           state.snapshots = [];
           state.isDirty = false;
         }
+        // Audit: Document deleted
+        auditDocument.deleted(action.payload);
       })
       // Duplicate document
       .addCase(duplicateDocument.fulfilled, (state, action) => {
         state.allDocuments = [action.payload, ...state.allDocuments];
+        // Audit: Document duplicated
+        auditDocument.duplicated(action.meta.arg, action.payload.id);
       })
       // Load snapshots
       .addCase(loadSnapshots.fulfilled, (state, action) => {
@@ -554,10 +592,16 @@ const documentSlice = createSlice({
         state.snapshots = updated
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, MAX_SNAPSHOTS);
+        // Audit: Snapshot created (only for manual snapshots to avoid noise)
+        if (!action.payload.isAutoSave) {
+          auditSnapshot.created(action.payload.documentId, action.payload.id, action.payload.isAutoSave);
+        }
       })
       // Share link
       .addCase(createShareLink.fulfilled, (state, action) => {
         state.shareLinks = [...state.shareLinks, action.payload];
+        // Audit: Document shared
+        auditDocument.shared(action.payload.documentId, 'link');
       });
   },
 });
@@ -568,8 +612,12 @@ export const {
   updateStatus,
   markClean,
   clearDocument,
-  restoreSnapshot,
+  restoreSnapshotInternal,
 } = documentSlice.actions;
+
+// Re-export restoreSnapshotInternal as restoreSnapshot for backwards compatibility
+// but prefer using restoreSnapshotWithAudit thunk for new code
+export const restoreSnapshot = restoreSnapshotInternal;
 
 export default documentSlice.reducer;
 

@@ -6,6 +6,38 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '../features/authSlice';
 import { Admin } from './Admin';
 
+// Mock audit utilities to prevent side effects during tests
+vi.mock('../utils/audit', () => ({
+    auditDocument: {
+        created: vi.fn(),
+        read: vi.fn(),
+        updated: vi.fn(),
+        deleted: vi.fn(),
+        exported: vi.fn(),
+        shared: vi.fn(),
+        duplicated: vi.fn(),
+    },
+    auditAI: {
+        suggestionsGenerated: vi.fn(),
+        suggestionAccepted: vi.fn(),
+        suggestionRejected: vi.fn(),
+        feedbackSubmitted: vi.fn(),
+    },
+    auditTemplate: {
+        created: vi.fn(),
+        updated: vi.fn(),
+        deleted: vi.fn(),
+    },
+    auditAdmin: {
+        accessed: vi.fn(),
+    },
+    auditSnapshot: {
+        created: vi.fn(),
+        restored: vi.fn(),
+    },
+    dispatchAuditEvent: vi.fn(),
+}));
+
 // Mock templates data
 const mockTemplates = [
     {

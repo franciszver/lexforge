@@ -10,6 +10,30 @@ import authReducer from '../features/authSlice';
 import intakeReducer from '../features/intakeSlice';
 import { Dashboard, Login, Admin } from './index';
 
+// Mock audit utilities to prevent side effects during tests
+vi.mock('../utils/audit', () => ({
+    auditDocument: {
+        created: vi.fn(),
+        read: vi.fn(),
+        updated: vi.fn(),
+        deleted: vi.fn(),
+        exported: vi.fn(),
+        shared: vi.fn(),
+        duplicated: vi.fn(),
+    },
+    auditAI: {
+        suggestionsGenerated: vi.fn(),
+        suggestionAccepted: vi.fn(),
+        suggestionRejected: vi.fn(),
+        feedbackSubmitted: vi.fn(),
+    },
+    auditSnapshot: {
+        created: vi.fn(),
+        restored: vi.fn(),
+    },
+    dispatchAuditEvent: vi.fn(),
+}));
+
 // Mock Amplify
 vi.mock('aws-amplify/data', () => ({
     generateClient: () => ({

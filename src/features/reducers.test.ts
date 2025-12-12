@@ -1,8 +1,32 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import intakeReducer, { updateField, addFact, removeFact, resetIntake } from './intakeSlice';
 import documentReducer, { updateContent, updateTitle, updateStatus, markClean, clearDocument } from './documentSlice';
 import suggestionsReducer, { setSignals, togglePin, archiveSuggestion, clearSuggestions } from './suggestionsSlice';
 import uiReducer, { toggleRightPanel, setRightPanelTab, setPendingInsertion, clearPendingInsertion } from './uiSlice';
+
+// Mock audit utilities to prevent side effects during tests
+vi.mock('../utils/audit', () => ({
+    auditDocument: {
+        created: vi.fn(),
+        read: vi.fn(),
+        updated: vi.fn(),
+        deleted: vi.fn(),
+        exported: vi.fn(),
+        shared: vi.fn(),
+        duplicated: vi.fn(),
+    },
+    auditAI: {
+        suggestionsGenerated: vi.fn(),
+        suggestionAccepted: vi.fn(),
+        suggestionRejected: vi.fn(),
+        feedbackSubmitted: vi.fn(),
+    },
+    auditSnapshot: {
+        created: vi.fn(),
+        restored: vi.fn(),
+    },
+    dispatchAuditEvent: vi.fn(),
+}));
 
 describe('Intake Reducer', () => {
     it('should handle initial state', () => {

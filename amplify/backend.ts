@@ -2,12 +2,14 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { generateSuggestion } from './functions/generate-suggestion/resource';
+import { auditLogger } from './functions/audit-logger/resource';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 
 export const backend = defineBackend({
   auth,
   data,
   generateSuggestion,
+  auditLogger,
 });
 
 // Note: Advanced Security Features (advancedSecurityMode) removed because
