@@ -78,12 +78,44 @@ const schema = a.schema({
   Template: a.model({
     category: a.string().required(), // e.g. 'Demand Letter'
     name: a.string(),
-    skeletonContent: a.string(), // Base HTML
+    skeletonContent: a.string(), // Base HTML with {{placeholder}} syntax
     defaultMetadata: a.json(),
+    
+    // Enhanced template fields
+    placeholders: a.json(), // Array of placeholder definitions: [{ name, type, label, required, defaultValue, options }]
+    sections: a.json(),     // Array of section definitions: [{ id, name, order, content, isRequired }]
+    variables: a.json(),    // Default variable values and types: { variableName: { type, defaultValue, validation } }
+    
+    // Versioning
+    version: a.integer().default(1),
+    isPublished: a.boolean().default(false),
+    publishedAt: a.datetime(),
+    parentTemplateId: a.string(), // Reference to original template for version tracking
   })
     .authorization((allow) => [
       allow.authenticated().to(['read']), // All signed-in users can read templates
       allow.group('Admins').to(['create', 'update', 'delete']), // Only admins manage them
+    ]),
+
+  // Template versions for history tracking
+  TemplateVersion: a.model({
+    templateId: a.string().required(),
+    version: a.integer().required(),
+    name: a.string(),
+    category: a.string(),
+    skeletonContent: a.string(),
+    placeholders: a.json(),
+    sections: a.json(),
+    variables: a.json(),
+    createdBy: a.string(),
+    changeNotes: a.string(),
+  })
+    .secondaryIndexes((index) => [
+      index('templateId').sortKeys(['version']).name('templateId-version-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['read']),
+      allow.group('Admins').to(['create', 'update', 'delete']),
     ]),
 
   UserProfile: a.model({
