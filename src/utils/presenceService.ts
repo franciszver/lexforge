@@ -60,6 +60,33 @@ function validateStatus(status: unknown): PresenceStatus {
     }
     return 'viewing'; // Default fallback
 }
+
+/**
+ * Parse a JSON field from DynamoDB
+ * Handles both string (JSON) and object formats for compatibility
+ */
+function parseJsonField<T>(value: unknown): T | null {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    
+    // If it's already an object, return it directly
+    if (typeof value === 'object') {
+        return value as T;
+    }
+    
+    // If it's a string, try to parse it as JSON
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as T;
+        } catch {
+            console.warn('[Presence] Failed to parse JSON field:', value);
+            return null;
+        }
+    }
+    
+    return null;
+}
 import { v4 as uuidv4 } from 'uuid';
 
 // Lazy client initialization
@@ -258,6 +285,7 @@ export async function updateStatus(status: PresenceStatus): Promise<void> {
 /**
  * Internal function to actually perform the status update
  * Includes last known cursor position to prevent it being overwritten
+ * Note: JSON fields must be stringified for DynamoDB
  */
 async function doUpdateStatus(status: PresenceStatus): Promise<void> {
     if (!state.currentPresenceId) return;
@@ -272,10 +300,10 @@ async function doUpdateStatus(status: PresenceStatus): Promise<void> {
             lastHeartbeat: new Date().toISOString(),
         };
         
-        // Always include cursor data if we have it
+        // Always include cursor data if we have it (stringify for DynamoDB)
         if (lastCursorPosition !== null) {
-            updateData.cursorPosition = lastCursorPosition;
-            updateData.selectionRange = lastSelectionRange;
+            updateData.cursorPosition = JSON.stringify(lastCursorPosition);
+            updateData.selectionRange = lastSelectionRange ? JSON.stringify(lastSelectionRange) : null;
         }
         
         console.log('[Presence] Updating status with cursor:', status, lastCursorPosition);
@@ -287,6 +315,7 @@ async function doUpdateStatus(status: PresenceStatus): Promise<void> {
 
 /**
  * Update cursor position
+ * Note: JSON fields must be stringified for DynamoDB
  */
 export async function updateCursor(
     position: CursorPosition | null,
@@ -304,8 +333,9 @@ export async function updateCursor(
         console.log('[Presence] Sending cursor update:', position);
         await client.models.DocumentPresence.update({
             id: state.currentPresenceId,
-            cursorPosition: position,
-            selectionRange: selection,
+            // JSON fields must be stringified for Amplify Gen 2
+            cursorPosition: position ? JSON.stringify(position) : null,
+            selectionRange: selection ? JSON.stringify(selection) : null,
             status: 'editing', // User is editing when cursor moves
             lastHeartbeat: new Date().toISOString(),
         });
@@ -437,8 +467,9 @@ export async function getDocumentPresences(documentId: string): Promise<UserPres
                 userColor: p.userColor ?? getUserColor(p.userId),
                 status: validateStatus(p.status),
                 lastHeartbeat: p.lastHeartbeat,
-                cursorPosition: p.cursorPosition as CursorPosition | null,
-                selectionRange: p.selectionRange as SelectionRange | null,
+                // Parse JSON strings from DynamoDB
+                cursorPosition: parseJsonField<CursorPosition>(p.cursorPosition),
+                selectionRange: parseJsonField<SelectionRange>(p.selectionRange),
                 sessionId: p.sessionId ?? undefined,
                 joinedAt: p.joinedAt,
             }));
