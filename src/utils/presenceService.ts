@@ -160,15 +160,63 @@ export async function leaveCurrentDocument(): Promise<void> {
         stopHeartbeat();
         stopCleanup();
         stopPresenceSubscription();
+        // Clean up status update timeout
+        if (statusUpdateTimeout) {
+            clearTimeout(statusUpdateTimeout);
+            statusUpdateTimeout = null;
+        }
+        pendingStatusUpdate = null;
         state.currentPresenceId = null;
         state.documentId = null;
     }
 }
 
+// Throttle status updates to prevent rapid toggling
+let lastStatusUpdate = 0;
+let pendingStatusUpdate: PresenceStatus | null = null;
+let statusUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+const STATUS_UPDATE_THROTTLE_MS = 2000; // Only update status every 2 seconds
+
 /**
- * Update presence status
+ * Update presence status (throttled to prevent rapid toggling)
  */
 export async function updateStatus(status: PresenceStatus): Promise<void> {
+    if (!state.currentPresenceId) return;
+    
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastStatusUpdate;
+    
+    // Store the latest status
+    pendingStatusUpdate = status;
+    
+    // Clear any pending update
+    if (statusUpdateTimeout) {
+        clearTimeout(statusUpdateTimeout);
+        statusUpdateTimeout = null;
+    }
+    
+    if (timeSinceLastUpdate >= STATUS_UPDATE_THROTTLE_MS) {
+        // Enough time has passed, update immediately
+        lastStatusUpdate = now;
+        await doUpdateStatus(status);
+        pendingStatusUpdate = null;
+    } else {
+        // Schedule update for remaining time
+        statusUpdateTimeout = setTimeout(async () => {
+            if (pendingStatusUpdate) {
+                lastStatusUpdate = Date.now();
+                await doUpdateStatus(pendingStatusUpdate);
+                pendingStatusUpdate = null;
+            }
+            statusUpdateTimeout = null;
+        }, STATUS_UPDATE_THROTTLE_MS - timeSinceLastUpdate);
+    }
+}
+
+/**
+ * Internal function to actually perform the status update
+ */
+async function doUpdateStatus(status: PresenceStatus): Promise<void> {
     if (!state.currentPresenceId) return;
     
     const client = getClient();
@@ -196,6 +244,7 @@ export async function updateCursor(
     const client = getClient();
     
     try {
+        console.log('[Presence] Sending cursor update:', position);
         await client.models.DocumentPresence.update({
             id: state.currentPresenceId,
             cursorPosition: position,
@@ -272,10 +321,13 @@ export interface TipTapCursorData {
 
 export function presencesToCursors(presences: UserPresence[]): TipTapCursorData[] {
     return presences
-        .filter(p => p.cursorPosition !== null) // Only include presences with cursor data
+        .filter(p => p.cursorPosition != null && p.cursorPosition !== undefined) // Only include presences with cursor data
         .map(p => {
             const cursorPos = p.cursorPosition as CursorPosition | null;
             const selRange = p.selectionRange as SelectionRange | null;
+            
+            // Log for debugging cursor sync
+            console.log('[Presence] Cursor data for', p.userName || p.userEmail, ':', cursorPos);
             
             return {
                 id: p.userId,
@@ -413,7 +465,13 @@ function startPresenceSubscription(documentId: string): void {
             // Errors are caught and logged internally
             void (async () => {
                 try {
-                    const presenceData = data as { sessionId?: string; userId?: string; status?: string } | null;
+                    const presenceData = data as { 
+                        sessionId?: string; 
+                        userId?: string; 
+                        status?: string;
+                        cursorPosition?: unknown;
+                        userName?: string;
+                    } | null;
                     if (!presenceData) return;
                     
                     // Don't process our own updates
@@ -425,7 +483,11 @@ function startPresenceSubscription(documentId: string): void {
                         return;
                     }
                     
-                    console.log(`[Presence] Real-time ${eventType}:`, presenceData.userId, presenceData.status);
+                    // Enhanced logging for debugging
+                    const cursorInfo = presenceData.cursorPosition 
+                        ? `cursor: ${JSON.stringify(presenceData.cursorPosition)}`
+                        : 'no cursor';
+                    console.log(`[Presence] Real-time ${eventType}:`, presenceData.userName || presenceData.userId, presenceData.status, cursorInfo);
                     
                     // Fetch all presences and notify subscribers
                     const presences = await getDocumentPresences(documentId);

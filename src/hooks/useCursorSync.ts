@@ -122,10 +122,20 @@ export function useCursorSync({
             updateLocalCursor(from, selection);
         };
         
+        // Send initial cursor position when editor is ready
+        // Small delay to ensure presence service is connected
+        const initTimeout = setTimeout(() => {
+            if (editor && !editor.isDestroyed) {
+                handleSelectionUpdate();
+                console.log('[CursorSync] Initial cursor position sent');
+            }
+        }, 500);
+        
         // Listen for selection changes
         editor.on('selectionUpdate', handleSelectionUpdate);
         
         return () => {
+            clearTimeout(initTimeout);
             if (typeof editor.off === 'function') {
                 editor.off('selectionUpdate', handleSelectionUpdate);
             }
