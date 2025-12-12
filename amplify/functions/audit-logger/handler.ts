@@ -1,14 +1,5 @@
 import type { Handler } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { createHash } from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
-
-const ddbClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(ddbClient);
-
-// Table name will be set by environment variable from Amplify
-const AUDIT_LOG_TABLE = process.env.AUDIT_LOG_TABLE_NAME || 'AuditLog';
+import { createHash, randomUUID } from 'crypto';
 
 interface AuditEventInput {
     eventType: string;
@@ -57,29 +48,16 @@ function computeHash(entry: Omit<AuditLogEntry, 'hash'>): string {
 /**
  * Get the hash of the most recent audit log entry for this user
  * This creates a per-user hash chain for integrity verification
+ * 
+ * Note: In the current implementation, hash chaining is handled client-side.
+ * This function returns 'GENESIS' as the previous hash will be computed
+ * by the client before calling this Lambda.
  */
 async function getPreviousHash(userId: string): Promise<string> {
-    try {
-        const result = await docClient.send(new QueryCommand({
-            TableName: AUDIT_LOG_TABLE,
-            IndexName: 'userId-timestamp-index',
-            KeyConditionExpression: 'userId = :userId',
-            ExpressionAttributeValues: {
-                ':userId': userId,
-            },
-            ScanIndexForward: false, // Descending order (newest first)
-            Limit: 1,
-        }));
-
-        if (result.Items && result.Items.length > 0) {
-            return result.Items[0].hash || 'GENESIS';
-        }
-        
-        return 'GENESIS'; // First entry for this user
-    } catch (error) {
-        console.warn('Could not fetch previous hash, using GENESIS:', error);
-        return 'GENESIS';
-    }
+    // Hash chaining is handled client-side in auditSlice.ts
+    // The client computes the previous hash before creating the entry
+    // This Lambda just returns the entry for AppSync to store
+    return 'GENESIS';
 }
 
 /**
@@ -141,12 +119,13 @@ export const handler: Handler = async (event) => {
         const { userId, userEmail } = extractUserInfo(event);
         const { ipAddress, userAgent, sessionId } = extractClientInfo(event);
         
-        // Get previous hash for chain integrity
-        const previousHash = await getPreviousHash(userId);
+        // Previous hash should be provided by the client in metadata
+        // For now, we'll use GENESIS (client-side hash chaining handles this)
+        const previousHash = (args.metadata as Record<string, unknown>)?.previousHash as string || 'GENESIS';
         
         // Create the audit entry
         const timestamp = new Date().toISOString();
-        const id = uuidv4();
+        const id = randomUUID();
         
         const entry: Omit<AuditLogEntry, 'hash'> = {
             id,
