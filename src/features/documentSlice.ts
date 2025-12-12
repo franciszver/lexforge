@@ -1,8 +1,33 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../amplify/data/resource';
 import { v4 as uuidv4 } from 'uuid';
+
+// Lazy client initialization to avoid "Amplify not configured" errors
+let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+function getClient() {
+  if (!_client) {
+    _client = generateClient<Schema>();
+  }
+  return _client;
+}
+
+// Helper to safely parse JSON fields from DynamoDB
+function parseJsonField<T>(value: unknown, defaultValue: T): T {
+  if (!value) return defaultValue;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return defaultValue;
+    }
+  }
+  return value as T;
+}
 
 /**
  * Document management slice with full CRUD operations.
+ * Now integrated with DynamoDB via Amplify Data API.
  * Supports autosave, snapshots, and share links.
  */
 
@@ -75,24 +100,54 @@ export const createDocument = createAsyncThunk(
   async (data: Partial<Document>, { rejectWithValue }) => {
     try {
       const now = new Date().toISOString();
-      const document: Document = {
-        id: uuidv4(),
+      
+      // Create in DynamoDB via Amplify
+      // Note: userId is required by schema but owner auth will associate the record with the user
+      const { data: draft, errors } = await getClient().models.Draft.create({
+        userId: '', // Required field, but owner auth takes precedence
         title: data.title || 'Untitled Document',
         content: data.content || '',
         status: 'draft',
-        jurisdiction: data.jurisdiction || 'Federal',
-        practiceArea: data.practiceArea || 'Litigation',
-        docType: data.docType || 'Demand Letter',
-        opponentName: data.opponentName || '',
-        clientGoal: data.clientGoal || '',
-        createdAt: now,
-        updatedAt: now,
+        metadata: JSON.stringify({
+          jurisdiction: data.jurisdiction || 'Federal',
+          practiceArea: data.practiceArea || 'Litigation',
+          docType: data.docType || 'Demand Letter',
+          opponentName: data.opponentName || '',
+        }),
+        intakeData: JSON.stringify({
+          clientGoal: data.clientGoal || '',
+          keyFacts: [],
+        }),
+      });
+
+      if (errors || !draft) {
+        console.error('DynamoDB create errors:', JSON.stringify(errors, null, 2));
+        const errorMessage = errors?.map(e => e.message).join(', ') || 'Unknown error';
+        return rejectWithValue(`Failed to create document: ${errorMessage}`);
+      }
+
+      // Map DynamoDB response to our Document format
+      const metadata = parseJsonField<Record<string, string>>(draft.metadata, {});
+      const intakeData = parseJsonField<Record<string, unknown>>(draft.intakeData, {});
+      
+      const document: Document = {
+        id: draft.id,
+        title: draft.title || 'Untitled Document',
+        content: draft.content || '',
+        status: (draft.status as 'draft' | 'review' | 'final') || 'draft',
+        jurisdiction: metadata.jurisdiction || 'Federal',
+        practiceArea: metadata.practiceArea || 'Litigation',
+        docType: metadata.docType || 'Demand Letter',
+        opponentName: metadata.opponentName || '',
+        clientGoal: (intakeData.clientGoal as string) || '',
+        createdAt: draft.createdAt || now,
+        updatedAt: draft.updatedAt || now,
         lastAutosaveAt: null,
       };
 
-      localStorage.setItem(`lexforge_doc_${document.id}`, JSON.stringify(document));
       return document;
     } catch (error) {
+      console.error('Error creating document:', error);
       return rejectWithValue('Failed to create document');
     }
   }
@@ -102,12 +157,35 @@ export const loadDocument = createAsyncThunk(
   'document/load',
   async (documentId: string, { rejectWithValue }) => {
     try {
-      const stored = localStorage.getItem(`lexforge_doc_${documentId}`);
-      if (stored) {
-        return JSON.parse(stored) as Document;
+      const { data: draft, errors } = await getClient().models.Draft.get({ id: documentId });
+
+      if (errors || !draft) {
+        console.error('DynamoDB load errors:', errors);
+        return rejectWithValue('Document not found');
       }
-      return rejectWithValue('Document not found');
+
+      // Map DynamoDB response to our Document format
+      const metadata = parseJsonField<Record<string, string>>(draft.metadata, {});
+      const intakeData = parseJsonField<Record<string, unknown>>(draft.intakeData, {});
+
+      const document: Document = {
+        id: draft.id,
+        title: draft.title || 'Untitled Document',
+        content: draft.content || '',
+        status: (draft.status as 'draft' | 'review' | 'final') || 'draft',
+        jurisdiction: metadata.jurisdiction || 'Federal',
+        practiceArea: metadata.practiceArea || 'Litigation',
+        docType: metadata.docType || 'Demand Letter',
+        opponentName: metadata.opponentName || '',
+        clientGoal: (intakeData.clientGoal as string) || '',
+        createdAt: draft.createdAt || new Date().toISOString(),
+        updatedAt: draft.updatedAt || new Date().toISOString(),
+        lastAutosaveAt: null,
+      };
+
+      return document;
     } catch (error) {
+      console.error('Error loading document:', error);
       return rejectWithValue('Failed to load document');
     }
   }
@@ -121,15 +199,38 @@ export const saveDocument = createAsyncThunk(
   ) => {
     try {
       const now = new Date().toISOString();
+
+      // Update in DynamoDB
+      const { data: draft, errors } = await getClient().models.Draft.update({
+        id: document.id,
+        title: document.title,
+        content: document.content,
+        status: document.status,
+        metadata: JSON.stringify({
+          jurisdiction: document.jurisdiction,
+          practiceArea: document.practiceArea,
+          docType: document.docType,
+          opponentName: document.opponentName,
+        }),
+        intakeData: JSON.stringify({
+          clientGoal: document.clientGoal,
+        }),
+      });
+
+      if (errors || !draft) {
+        console.error('DynamoDB save errors:', errors);
+        return rejectWithValue('Failed to save document');
+      }
+
       const updatedDocument = {
         ...document,
-        updatedAt: now,
+        updatedAt: draft.updatedAt || now,
         lastAutosaveAt: isAutosave ? now : document.lastAutosaveAt,
       };
 
-      localStorage.setItem(`lexforge_doc_${document.id}`, JSON.stringify(updatedDocument));
       return { document: updatedDocument, isAutosave };
     } catch (error) {
+      console.error('Error saving document:', error);
       return rejectWithValue('Failed to save document');
     }
   }
@@ -139,23 +240,39 @@ export const loadAllDocuments = createAsyncThunk(
   'document/loadAll',
   async (_, { rejectWithValue }) => {
     try {
-      const documents: Document[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('lexforge_doc_')) {
-          const stored = localStorage.getItem(key);
-          if (stored) {
-            try {
-              documents.push(JSON.parse(stored) as Document);
-            } catch {
-              // Skip invalid entries
-            }
-          }
-        }
+      const { data: drafts, errors } = await getClient().models.Draft.list();
+
+      if (errors) {
+        console.error('DynamoDB list errors:', errors);
+        return rejectWithValue('Failed to load documents');
       }
+
+      // Map DynamoDB responses to our Document format
+      const documents: Document[] = (drafts || []).map((draft) => {
+        const metadata = parseJsonField<Record<string, string>>(draft.metadata, {});
+        const intakeData = parseJsonField<Record<string, unknown>>(draft.intakeData, {});
+
+        return {
+          id: draft.id,
+          title: draft.title || 'Untitled Document',
+          content: draft.content || '',
+          status: (draft.status as 'draft' | 'review' | 'final') || 'draft',
+          jurisdiction: metadata.jurisdiction || 'Federal',
+          practiceArea: metadata.practiceArea || 'Litigation',
+          docType: metadata.docType || 'Demand Letter',
+          opponentName: metadata.opponentName || '',
+          clientGoal: (intakeData.clientGoal as string) || '',
+          createdAt: draft.createdAt || new Date().toISOString(),
+          updatedAt: draft.updatedAt || new Date().toISOString(),
+          lastAutosaveAt: null,
+        };
+      });
+
+      // Sort by updatedAt descending
       documents.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       return documents;
     } catch (error) {
+      console.error('Error loading documents:', error);
       return rejectWithValue('Failed to load documents');
     }
   }
@@ -165,11 +282,20 @@ export const deleteDocument = createAsyncThunk(
   'document/delete',
   async (documentId: string, { rejectWithValue }) => {
     try {
-      localStorage.removeItem(`lexforge_doc_${documentId}`);
+      const { errors } = await getClient().models.Draft.delete({ id: documentId });
+
+      if (errors) {
+        console.error('DynamoDB delete errors:', errors);
+        return rejectWithValue('Failed to delete document');
+      }
+
+      // Also clean up local storage for snapshots/share links (still using localStorage for these)
       localStorage.removeItem(`lexforge_snapshots_${documentId}`);
       localStorage.removeItem(`lexforge_share_${documentId}`);
+      
       return documentId;
     } catch (error) {
+      console.error('Error deleting document:', error);
       return rejectWithValue('Failed to delete document');
     }
   }
@@ -179,25 +305,51 @@ export const duplicateDocument = createAsyncThunk(
   'document/duplicate',
   async (documentId: string, { rejectWithValue }) => {
     try {
-      const stored = localStorage.getItem(`lexforge_doc_${documentId}`);
-      if (!stored) {
+      // First, get the original document
+      const { data: original, errors: getErrors } = await getClient().models.Draft.get({ id: documentId });
+
+      if (getErrors || !original) {
+        console.error('DynamoDB get errors:', getErrors);
         return rejectWithValue('Document not found');
       }
 
-      const original = JSON.parse(stored) as Document;
-      const now = new Date().toISOString();
-      const duplicate: Document = {
-        ...original,
-        id: uuidv4(),
-        title: `${original.title} (Copy)`,
-        createdAt: now,
-        updatedAt: now,
+      // Create a duplicate - pass metadata/intakeData as-is since they're already JSON strings
+      const { data: duplicate, errors: createErrors } = await getClient().models.Draft.create({
+        userId: '', // Required field, but owner auth takes precedence
+        title: `${original.title || 'Untitled'} (Copy)`,
+        content: original.content || '',
+        status: 'draft',
+        metadata: original.metadata, // Already a JSON string from original
+        intakeData: original.intakeData, // Already a JSON string from original
+      });
+
+      if (createErrors || !duplicate) {
+        console.error('DynamoDB create errors:', createErrors);
+        return rejectWithValue('Failed to duplicate document');
+      }
+
+      // Map to our Document format
+      const metadata = parseJsonField<Record<string, string>>(duplicate.metadata, {});
+      const intakeData = parseJsonField<Record<string, unknown>>(duplicate.intakeData, {});
+
+      const document: Document = {
+        id: duplicate.id,
+        title: duplicate.title || 'Untitled Document',
+        content: duplicate.content || '',
+        status: (duplicate.status as 'draft' | 'review' | 'final') || 'draft',
+        jurisdiction: metadata.jurisdiction || 'Federal',
+        practiceArea: metadata.practiceArea || 'Litigation',
+        docType: metadata.docType || 'Demand Letter',
+        opponentName: metadata.opponentName || '',
+        clientGoal: (intakeData.clientGoal as string) || '',
+        createdAt: duplicate.createdAt || new Date().toISOString(),
+        updatedAt: duplicate.updatedAt || new Date().toISOString(),
         lastAutosaveAt: null,
       };
 
-      localStorage.setItem(`lexforge_doc_${duplicate.id}`, JSON.stringify(duplicate));
-      return duplicate;
+      return document;
     } catch (error) {
+      console.error('Error duplicating document:', error);
       return rejectWithValue('Failed to duplicate document');
     }
   }

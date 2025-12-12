@@ -1,9 +1,22 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { v4 as uuidv4 } from 'uuid';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../amplify/data/resource';
+
+// Lazy client initialization to avoid "Amplify not configured" errors
+let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+function getClient() {
+  if (!_client) {
+    _client = generateClient<Schema>();
+  }
+  return _client;
+}
 
 /**
  * Enhanced suggestions slice with signal controls, pin/archive, and filtering.
+ * Now integrated with real OpenAI-powered Lambda function via Amplify.
  */
+
+export type FeedbackType = 'up' | 'down' | null;
 
 export interface Suggestion {
     id: string;
@@ -18,6 +31,7 @@ export interface Suggestion {
     pinned: boolean;
     archived: boolean;
     superseded: boolean;
+    feedback: FeedbackType;
 }
 
 export type Formality = 'casual' | 'moderate' | 'formal';
@@ -66,98 +80,77 @@ const initialState: SuggestionsState = {
     error: null,
 };
 
-// Mock suggestion generation (replace with real API call)
+interface DocumentContext {
+    jurisdiction?: string;
+    docType?: string;
+    practiceArea?: string;
+}
+
+// Real suggestion generation via Amplify Lambda
 export const generateSuggestions = createAsyncThunk(
     'suggestions/generate',
     async (
-        { documentId: _documentId, content: _content, appendMode }: { documentId: string; content: string; appendMode?: boolean },
+        { content, appendMode, context }: { documentId: string; content: string; appendMode?: boolean; context?: DocumentContext },
         { getState, rejectWithValue }
     ) => {
         try {
             const state = getState() as { suggestions: SuggestionsState };
-            const { signals, approverPov: _approverPov, suggestionCount } = state.suggestions;
-            // Note: _documentId, _content, and _approverPov will be used when integrating with real API
+            const { signals, approverPov, suggestionCount } = state.suggestions;
 
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Call the Lambda function via Amplify GraphQL
+            const response = await getClient().queries.askAI({
+                text: content,
+                context: {
+                    jurisdiction: context?.jurisdiction || 'Federal',
+                    docType: context?.docType || 'Legal Document',
+                    practiceArea: context?.practiceArea || 'General',
+                    formality: signals.formality,
+                    riskAppetite: signals.riskAppetite,
+                    approverPov: approverPov,
+                    suggestionCount: suggestionCount,
+                },
+            });
 
-            // Mock suggestions based on signals
-            const mockSuggestions: Suggestion[] = [
-                {
-                    id: uuidv4(),
-                    type: 'tone',
-                    title: 'Formality Adjustment',
-                    text: signals.formality === 'formal'
-                        ? 'Consider using more formal language for regulatory compliance documents.'
-                        : 'The tone is appropriate for the document type.',
-                    replacementText: 'We formally request immediate compliance with the terms outlined herein.',
-                    confidence: 0.85,
-                    sourceRefs: ['https://www.law.cornell.edu/rules', 'https://www.uscourts.gov/rules-policies'],
-                    createdAt: new Date().toISOString(),
-                    pinned: false,
-                    archived: false,
-                    superseded: false,
-                },
-                {
-                    id: uuidv4(),
-                    type: 'precision',
-                    title: 'Date Specification Required',
-                    text: 'Specify exact dates for the alleged breach to strengthen the legal position.',
-                    confidence: 0.92,
-                    sourceRefs: ['https://www.law.cornell.edu/ucc'],
-                    createdAt: new Date().toISOString(),
-                    pinned: false,
-                    archived: false,
-                    superseded: false,
-                },
-                {
-                    id: uuidv4(),
-                    type: 'risk',
-                    title: signals.riskAppetite === 'conservative' ? 'Risk Mitigation Recommended' : 'Risk Assessment',
-                    text: signals.riskAppetite === 'conservative'
-                        ? 'Consider adding additional safeguards and disclaimers to minimize liability exposure.'
-                        : 'Current risk exposure is within acceptable parameters.',
-                    confidence: 0.78,
-                    sourceRefs: [],
-                    createdAt: new Date().toISOString(),
-                    pinned: false,
-                    archived: false,
-                    superseded: false,
-                },
-                {
-                    id: uuidv4(),
-                    type: 'source',
-                    title: 'Citation Needed',
-                    text: 'Add legal precedent citation to support the claim regarding breach of contract.',
-                    replacementText: 'As established in Smith v. Jones, 123 F.3d 456 (9th Cir. 2019)...',
-                    confidence: 0.88,
-                    source: 'Westlaw Database',
-                    sourceRefs: ['https://www.westlaw.com'],
-                    createdAt: new Date().toISOString(),
-                    pinned: false,
-                    archived: false,
-                    superseded: false,
-                },
-                {
-                    id: uuidv4(),
-                    type: 'structured',
-                    title: 'Section Organization',
-                    text: 'Consider restructuring the document with clear headings for better readability.',
-                    confidence: 0.75,
-                    sourceRefs: [],
-                    createdAt: new Date().toISOString(),
-                    pinned: false,
-                    archived: false,
-                    superseded: false,
-                },
-            ];
+            if (response.errors && response.errors.length > 0) {
+                console.error('GraphQL errors:', response.errors);
+                return rejectWithValue('Failed to generate suggestions');
+            }
 
-            // Return limited number based on suggestionCount
+            // Parse the response
+            const data = response.data as { suggestions?: Array<{
+                id: string;
+                type: string;
+                title: string;
+                text: string;
+                replacementText?: string;
+                confidence: number;
+                sourceRefs?: string[];
+            }> } | null;
+            
+            const rawSuggestions = data?.suggestions || [];
+
+            // Transform to our Suggestion format
+            const suggestions: Suggestion[] = rawSuggestions.slice(0, suggestionCount).map((s) => ({
+                id: s.id || crypto.randomUUID(),
+                type: (s.type as Suggestion['type']) || 'structured',
+                title: s.title || 'Suggestion',
+                text: s.text || '',
+                replacementText: s.replacementText,
+                confidence: s.confidence || 0.75,
+                sourceRefs: s.sourceRefs || [],
+                createdAt: new Date().toISOString(),
+                pinned: false,
+                archived: false,
+                superseded: false,
+                feedback: null,
+            }));
+
             return {
-                suggestions: mockSuggestions.slice(0, suggestionCount),
+                suggestions,
                 appendMode: appendMode ?? false,
             };
         } catch (error) {
+            console.error('Error generating suggestions:', error);
             return rejectWithValue('Failed to generate suggestions');
         }
     }
@@ -180,6 +173,17 @@ const suggestionsSlice = createSlice({
             const suggestion = state.suggestions.find(s => s.id === action.payload);
             if (suggestion) {
                 suggestion.pinned = !suggestion.pinned;
+            }
+        },
+        setFeedback: (state, action: PayloadAction<{ id: string; feedback: FeedbackType }>) => {
+            const suggestion = state.suggestions.find(s => s.id === action.payload.id);
+            if (suggestion) {
+                suggestion.feedback = action.payload.feedback;
+            }
+            // Also check archived suggestions
+            const archivedSuggestion = state.archivedSuggestions.find(s => s.id === action.payload.id);
+            if (archivedSuggestion) {
+                archivedSuggestion.feedback = action.payload.feedback;
             }
         },
         archiveSuggestion: (state, action: PayloadAction<string>) => {
@@ -253,6 +257,7 @@ export const {
     setApproverPov,
     setSuggestionCount,
     togglePin,
+    setFeedback,
     archiveSuggestion,
     unarchiveSuggestion,
     removeSuggestion,

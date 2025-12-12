@@ -7,6 +7,11 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 export type RightPanelTab = 'domain' | 'suggestions' | 'history';
 export type FontSize = 'small' | 'medium' | 'large';
 
+interface PendingInsertion {
+  text: string;
+  suggestionId: string;
+}
+
 interface UIState {
   rightPanelOpen: boolean;
   rightPanelTab: RightPanelTab;
@@ -14,6 +19,7 @@ interface UIState {
   showNewDocModal: boolean;
   showShareModal: boolean;
   showDeleteConfirm: string | null; // documentId or null
+  pendingInsertion: PendingInsertion | null; // Text to insert into editor
 }
 
 const initialState: UIState = {
@@ -23,6 +29,7 @@ const initialState: UIState = {
   showNewDocModal: false,
   showShareModal: false,
   showDeleteConfirm: null,
+  pendingInsertion: null,
 };
 
 const uiSlice = createSlice({
@@ -50,6 +57,12 @@ const uiSlice = createSlice({
     setShowDeleteConfirm: (state, action: PayloadAction<string | null>) => {
       state.showDeleteConfirm = action.payload;
     },
+    setPendingInsertion: (state, action: PayloadAction<{ text: string; suggestionId: string } | null>) => {
+      state.pendingInsertion = action.payload;
+    },
+    clearPendingInsertion: (state) => {
+      state.pendingInsertion = null;
+    },
   },
 });
 
@@ -61,6 +74,8 @@ export const {
   setShowNewDocModal,
   setShowShareModal,
   setShowDeleteConfirm,
+  setPendingInsertion,
+  clearPendingInsertion,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

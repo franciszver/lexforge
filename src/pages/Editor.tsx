@@ -14,7 +14,7 @@ import {
     updateStatus,
     createSnapshot,
 } from '../features/documentSlice';
-import { toggleRightPanel, setShowShareModal } from '../features/uiSlice';
+import { toggleRightPanel, setShowShareModal, clearPendingInsertion } from '../features/uiSlice';
 import { generateSuggestions } from '../features/suggestionsSlice';
 import { RightPanel, StatusBar } from '../components';
 import {
@@ -31,7 +31,7 @@ export const Editor = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { currentDocument, isDirty, isAutosaving, loading } = useAppSelector((state) => state.document);
-    const { rightPanelOpen } = useAppSelector((state) => state.ui);
+    const { rightPanelOpen, pendingInsertion } = useAppSelector((state) => state.ui);
     const { isGenerating } = useAppSelector((state) => state.suggestions);
 
     const autosaveRef = useRef<ReturnType<typeof debounce> | null>(null);
@@ -83,6 +83,16 @@ export const Editor = () => {
         }
     }, [editor, currentDocument?.content]);
 
+    // Handle accepted suggestions - insert text at cursor position
+    useEffect(() => {
+        if (editor && pendingInsertion) {
+            // Focus the editor and insert the text at the current selection
+            editor.chain().focus().insertContent(pendingInsertion.text).run();
+            // Clear the pending insertion
+            dispatch(clearPendingInsertion());
+        }
+    }, [editor, pendingInsertion, dispatch]);
+
     const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(updateTitle(e.target.value));
     }, [dispatch]);
@@ -108,6 +118,11 @@ export const Editor = () => {
             dispatch(generateSuggestions({
                 documentId: currentDocument.id,
                 content: currentDocument.content,
+                context: {
+                    jurisdiction: currentDocument.jurisdiction,
+                    docType: currentDocument.docType,
+                    practiceArea: currentDocument.practiceArea,
+                },
             }));
             if (!rightPanelOpen) {
                 dispatch(toggleRightPanel());

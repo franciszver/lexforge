@@ -6,13 +6,16 @@ import {
   setApproverPov,
   setSuggestionCount,
   togglePin,
+  setFeedback,
   archiveSuggestion,
   unarchiveSuggestion,
   toggleCollapse,
   collapseAll,
   expandAll,
   type ApproverPOV,
+  type FeedbackType,
 } from '../../features/suggestionsSlice';
+import { setPendingInsertion } from '../../features/uiSlice';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   RefreshCw, 
@@ -26,7 +29,10 @@ import {
   Info,
   Minimize2,
   Maximize2,
-  Plus
+  Plus,
+  Check,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 
 const suggestionCountOptions = [3, 5, 8, 10, 15];
@@ -92,6 +98,11 @@ export function SuggestionsPanel() {
         documentId: currentDocument.id,
         content: currentDocument.content,
         appendMode: false,
+        context: {
+          jurisdiction: currentDocument.jurisdiction,
+          docType: currentDocument.docType,
+          practiceArea: currentDocument.practiceArea,
+        },
       }));
     }
   }, [dispatch, currentDocument]);
@@ -102,6 +113,11 @@ export function SuggestionsPanel() {
         documentId: currentDocument.id,
         content: currentDocument.content,
         appendMode: true,
+        context: {
+          jurisdiction: currentDocument.jurisdiction,
+          docType: currentDocument.docType,
+          practiceArea: currentDocument.practiceArea,
+        },
       }));
     }
   }, [dispatch, currentDocument]);
@@ -307,6 +323,14 @@ export function SuggestionsPanel() {
                 onPin={() => dispatch(togglePin(suggestion.id))}
                 onToggleCollapse={() => dispatch(toggleCollapse(suggestion.id))}
                 onArchive={() => dispatch(archiveSuggestion(suggestion.id))}
+                onAccept={suggestion.replacementText ? () => {
+                  dispatch(setPendingInsertion({
+                    text: suggestion.replacementText!,
+                    suggestionId: suggestion.id,
+                  }));
+                  dispatch(archiveSuggestion(suggestion.id));
+                } : undefined}
+                onFeedback={(feedback) => dispatch(setFeedback({ id: suggestion.id, feedback }))}
               />
             ))}
       </div>
@@ -381,15 +405,18 @@ interface SuggestionCardProps {
     sourceRefs: string[];
     createdAt: string;
     pinned: boolean;
+    feedback?: FeedbackType;
   };
   isCollapsed: boolean;
   isArchived: boolean;
   onPin: () => void;
   onToggleCollapse: () => void;
   onArchive: () => void;
+  onAccept?: () => void;
+  onFeedback?: (feedback: FeedbackType) => void;
 }
 
-function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCollapse, onArchive }: SuggestionCardProps) {
+function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCollapse, onArchive, onAccept, onFeedback }: SuggestionCardProps) {
   const timeAgo = formatDistanceToNow(new Date(suggestion.createdAt), { addSuffix: true });
 
   const getSeverityBadge = () => {
@@ -476,10 +503,21 @@ function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCo
       {/* Content */}
       <p className="text-sm text-slate-600 whitespace-pre-wrap">{suggestion.text}</p>
 
-      {/* Replacement text */}
+      {/* Replacement text with Accept button */}
       {suggestion.replacementText && (
         <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-100">
-          <p className="text-xs font-medium text-green-700 mb-1">Suggested Replacement:</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-medium text-green-700">Suggested Replacement:</p>
+            {onAccept && !isArchived && (
+              <button
+                onClick={onAccept}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+              >
+                <Check className="w-3 h-3" />
+                Accept
+              </button>
+            )}
+          </div>
           <p className="text-sm text-green-800">{suggestion.replacementText}</p>
         </div>
       )}
@@ -518,23 +556,53 @@ function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCo
         </div>
       )}
 
-      {/* Confidence bar */}
-      <div className="mt-3 flex items-center gap-2">
-        <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-          <div
-            className={`h-full ${
-              suggestion.confidence > 0.8
-                ? 'bg-green-500'
-                : suggestion.confidence > 0.6
-                  ? 'bg-amber-500'
-                  : 'bg-slate-400'
-            }`}
-            style={{ width: `${suggestion.confidence * 100}%` }}
-          />
+      {/* Confidence bar and feedback */}
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1">
+          <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full ${
+                suggestion.confidence > 0.8
+                  ? 'bg-green-500'
+                  : suggestion.confidence > 0.6
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400'
+              }`}
+              style={{ width: `${suggestion.confidence * 100}%` }}
+            />
+          </div>
+          <span className="text-xs text-slate-500 whitespace-nowrap">
+            {Math.round(suggestion.confidence * 100)}%
+          </span>
         </div>
-        <span className="text-xs text-slate-500">
-          {Math.round(suggestion.confidence * 100)}% confidence
-        </span>
+        
+        {/* Feedback buttons */}
+        {onFeedback && (
+          <div className="flex items-center gap-1 ml-2">
+            <button
+              onClick={() => onFeedback(suggestion.feedback === 'up' ? null : 'up')}
+              className={`p-1 rounded transition-colors ${
+                suggestion.feedback === 'up'
+                  ? 'text-green-600 bg-green-100'
+                  : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+              }`}
+              title="Helpful"
+            >
+              <ThumbsUp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onFeedback(suggestion.feedback === 'down' ? null : 'down')}
+              className={`p-1 rounded transition-colors ${
+                suggestion.feedback === 'down'
+                  ? 'text-red-600 bg-red-100'
+                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+              }`}
+              title="Not helpful"
+            >
+              <ThumbsDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

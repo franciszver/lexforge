@@ -5,6 +5,7 @@ export const generateSuggestion = defineFunction({
     entry: './handler.ts',
     environment: {
         OPENAI_API_KEY_SECRET_NAME: 'lexforge/openai-api-key',
+        BRAVE_API_KEY_SECRET_NAME: 'lexforge/brave-api-key',
     },
     runtime: 20,
     timeoutSeconds: 30,
