@@ -124,7 +124,7 @@ export function generateFederalAppellateCaption(data: CaptionData, rules: CourtF
     lines.push(`<div class="caption-parties-block">`);
     
     // Appellants (former plaintiffs or defendants depending on who appealed)
-    data.plaintiffs.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.plaintiffs.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div class="party-line">${name},</div>`);
     });
@@ -139,7 +139,7 @@ export function generateFederalAppellateCaption(data: CaptionData, rules: CourtF
     lines.push(`<div class="vs-line centered">${getPartySeparator(captionRules.partyFormat)}</div>`);
     
     // Appellees
-    data.defendants.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.defendants.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div class="party-line">${name},</div>`);
     });
@@ -193,7 +193,7 @@ export function generateCaliforniaSuperiorCaption(data: CaptionData, rules: Cour
     lines.push(`<td class="parties-cell" width="50%">`);
     
     // Plaintiffs
-    data.plaintiffs.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.plaintiffs.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div>${name},</div>`);
     });
@@ -205,7 +205,7 @@ export function generateCaliforniaSuperiorCaption(data: CaptionData, rules: Cour
     lines.push(`<div style="text-align: center; margin: 0.5em 0;">${getPartySeparator(captionRules.partyFormat)}</div>`);
     
     // Defendants
-    data.defendants.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.defendants.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div>${name},</div>`);
     });
@@ -334,7 +334,7 @@ export function generateNewYorkSupremeCaption(data: CaptionData, rules: CourtFor
     lines.push(`<div class="parties-section">`);
     
     // Plaintiffs
-    data.plaintiffs.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.plaintiffs.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div class="party-line">${name},</div>`);
     });
@@ -349,7 +349,7 @@ export function generateNewYorkSupremeCaption(data: CaptionData, rules: CourtFor
     lines.push(`</div>`);
     
     // Defendants
-    data.defendants.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.defendants.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div class="party-line">${name},</div>`);
     });
@@ -392,7 +392,7 @@ export function generateTexasCaption(data: CaptionData, rules: CourtFormattingRu
     
     // Left column - plaintiffs
     lines.push(`<td width="45%">`);
-    data.plaintiffs.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.plaintiffs.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div>${name},</div>`);
     });
@@ -432,7 +432,7 @@ export function generateTexasCaption(data: CaptionData, rules: CourtFormattingRu
     
     lines.push(`<td width="45%">`);
     lines.push(`<div style="text-align: center; margin: 0.5em 0;">${getPartySeparator(captionRules.partyFormat).toUpperCase()}</div>`);
-    data.defendants.filter(p => p.isLeadParty).forEach((party, i) => {
+    data.defendants.filter(p => p.isLeadParty).forEach((party) => {
         const name = formatPartyName(party.name, captionRules.allCaps);
         lines.push(`<div>${name},</div>`);
     });

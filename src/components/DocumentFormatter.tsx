@@ -630,7 +630,7 @@ export function DocumentFormatter({
         email: '',
         representingParty: '',
     });
-    const [services, setServices] = useState<ServiceInfo[]>([]);
+    const [services, _setServices] = useState<ServiceInfo[]>([]);
     const [formattedDoc, setFormattedDoc] = useState<FormattedDocument | null>(null);
     
     // Update caption when court changes

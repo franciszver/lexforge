@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import type { Clause, ClauseFilter } from './clauseTypes';
 import {
-    Clause,
-    ClauseFilter,
-    ClauseSort,
     matchesFilter,
     sortClauses,
     getUniqueTags,

@@ -6,7 +6,7 @@ import {
     validateCitation,
     citationToHtml,
 } from './citationFormatter';
-import { Citation } from './citationTypes';
+import type { Citation } from './citationTypes';
 
 // ============================================
 // Test Data
@@ -137,7 +137,7 @@ describe('formatCitation', () => {
     describe('ALWD Style', () => {
         it('should format case similarly to Bluebook', () => {
             const citation = createMockCitation();
-            const bluebook = formatCitation(citation, 'bluebook');
+            void formatCitation(citation, 'bluebook');
             const alwd = formatCitation(citation, 'alwd');
             
             // ALWD is similar to Bluebook for basic cases

@@ -3,7 +3,7 @@
  * Defines the structure for reusable legal clauses.
  */
 
-import { PlaceholderDefinition } from './templateTypes';
+import type { PlaceholderDefinition } from './templateTypes';
 
 // ============================================
 // Clause Types

@@ -218,7 +218,8 @@ export function ClauseIntegration({
                 const groups: SuggestedClauseGroup[] = [];
                 
                 for (const category of categories) {
-                    const clauses = await getClausesByCategory(category, 5);
+                    const allClauses = await getClausesByCategory(category);
+                    const clauses = allClauses.slice(0, 5);
                     if (clauses.length > 0) {
                         // Sort by relevance
                         const withRelevance = clauses.map(c => ({
@@ -266,7 +267,7 @@ export function ClauseIntegration({
         setSearching(true);
         
         try {
-            const results = await getSuggestedClauses(documentType || '', jurisdiction || '', [], 10);
+            const results = await getSuggestedClauses(documentType || '', jurisdiction || '', []);
             // Filter by search query
             const filtered = results.filter(c => 
                 c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

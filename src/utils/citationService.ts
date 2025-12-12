@@ -5,12 +5,14 @@
 
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
-import {
+import type {
     Citation,
     CitationFilter,
     CitationSort,
     CitationSearchResult,
     UserCitationFavorite,
+} from './citationTypes';
+import {
     matchesCitationFilter,
     sortCitations,
 } from './citationTypes';

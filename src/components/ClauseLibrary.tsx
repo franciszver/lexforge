@@ -21,11 +21,8 @@ import {
     ArrowUpDown,
     RefreshCw,
 } from 'lucide-react';
+import type { Clause, ClauseFilter, ClauseSort, ClauseSortField } from '../utils/clauseTypes';
 import {
-    Clause,
-    ClauseFilter,
-    ClauseSort,
-    ClauseSortField,
     CLAUSE_CATEGORIES,
     JURISDICTIONS,
     DOCUMENT_TYPES,

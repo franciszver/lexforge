@@ -24,12 +24,14 @@ import {
     ExternalLink,
     Copy,
 } from 'lucide-react';
-import {
+import type {
     Citation,
     CitationType,
     CitationFilter,
     CitationSort,
     CitationSortField,
+} from '../utils/citationTypes';
+import {
     CITATION_TYPES,
     LEGAL_CATEGORIES,
     JURISDICTIONS,
@@ -43,7 +45,8 @@ import {
     removeCitationFromFavorites,
     getUserCitationFavorites,
 } from '../utils/citationService';
-import { formatCitation, citationToHtml, CitationStyle } from '../utils/citationFormatter';
+import type { CitationStyle } from '../utils/citationTypes';
+import { formatCitation, citationToHtml } from '../utils/citationFormatter';
 
 // ============================================
 // Type Icons

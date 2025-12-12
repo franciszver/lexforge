@@ -19,7 +19,7 @@ import {
     Check,
     Info,
 } from 'lucide-react';
-import {
+import type {
     PlaceholderDefinition,
     PlaceholderType,
     PlaceholderValues,

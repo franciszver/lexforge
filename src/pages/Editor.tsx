@@ -28,7 +28,8 @@ import { format } from 'date-fns';
  */
 export const Editor = () => {
     const { id } = useParams();
-    const navigate = useNavigate();
+    // Navigation hook available for future use
+    void useNavigate();
     const dispatch = useAppDispatch();
     const { currentDocument, isDirty, isAutosaving, loading } = useAppSelector((state) => state.document);
     const { rightPanelOpen, pendingInsertion } = useAppSelector((state) => state.ui);

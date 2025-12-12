@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
     outlineToHtml,
     exportOutlineToJson,
@@ -9,7 +9,7 @@ import {
     removeArgumentFromOutline,
     updateArgumentInOutline,
 } from './argumentService';
-import type { ArgumentOutline, Argument, SupportingPoint, CounterArgument } from './argumentTypes';
+import type { ArgumentOutline, Argument } from './argumentTypes';
 
 // Helper to create a mock argument
 const createMockArgument = (overrides: Partial<Argument> = {}): Argument => ({

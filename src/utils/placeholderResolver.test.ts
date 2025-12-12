@@ -9,11 +9,13 @@ import {
     createInitialValues,
     mergeIntakeData,
 } from './placeholderResolver';
-import {
+import type {
     PlaceholderDefinition,
     PlaceholderValues,
     TemplateSection,
     SectionCondition,
+} from './templateTypes';
+import {
     extractPlaceholders,
     hasPlaceholders,
 } from './templateTypes';

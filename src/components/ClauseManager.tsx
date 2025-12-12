@@ -21,9 +21,8 @@ import {
     MapPin,
     FileText,
 } from 'lucide-react';
+import type { Clause, ClauseVariation } from '../utils/clauseTypes';
 import {
-    Clause,
-    ClauseVariation,
     CLAUSE_CATEGORIES,
     JURISDICTIONS,
     DOCUMENT_TYPES,

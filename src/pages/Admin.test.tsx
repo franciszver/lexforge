@@ -146,10 +146,13 @@ const renderAdmin = () => {
         preloadedState: {
             auth: {
                 isAuthenticated: true,
-                email: 'admin@example.com',
-                userId: 'admin-123',
                 isAdmin: true,
+                user: {
+                    email: 'admin@example.com',
+                    userId: 'admin-123',
+                },
                 loading: false,
+                error: null,
             },
         },
     });

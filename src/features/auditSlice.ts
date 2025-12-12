@@ -363,7 +363,7 @@ const auditSlice = createSlice({
                     state.logs.unshift(action.payload);
                 }
             })
-            .addCase(logAuditEvent.rejected, (state, action) => {
+            .addCase(logAuditEvent.rejected, (_state, action) => {
                 // Queue for retry if needed
                 console.warn('Audit event logging failed:', action.payload);
             });

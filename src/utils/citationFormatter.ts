@@ -3,12 +3,12 @@
  * Formats legal citations according to Bluebook and other styles.
  */
 
-import {
+import type {
     Citation,
     CitationStyle,
     FormattedCitation,
-    COURTS,
 } from './citationTypes';
+import { COURTS } from './citationTypes';
 
 // ============================================
 // Bluebook Formatting

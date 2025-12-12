@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppSelector } from '../store';
-import { Cloud, CloudOff, AlertCircle } from 'lucide-react';
+import { Cloud, AlertCircle } from 'lucide-react';
 
 /**
  * Status bar showing word count, save status, and document info.

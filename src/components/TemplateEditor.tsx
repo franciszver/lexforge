@@ -30,15 +30,15 @@ import {
     Copy,
     FileText,
 } from 'lucide-react';
-import {
+import type {
     PlaceholderDefinition,
     PlaceholderType,
     PlaceholderOption,
     TemplateSection,
     VariableMap,
-    extractPlaceholders,
     PlaceholderValues,
 } from '../utils/templateTypes';
+import { extractPlaceholders } from '../utils/templateTypes';
 import {
     generatePreview,
     createInitialValues,

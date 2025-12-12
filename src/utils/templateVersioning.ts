@@ -5,7 +5,7 @@
 
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
-import {
+import type {
     PlaceholderDefinition,
     TemplateSection,
     VariableMap,
@@ -209,7 +209,8 @@ export async function restoreTemplateVersion(
     version: number,
     restoredBy: string
 ): Promise<boolean> {
-    const client = getClient();
+    // Ensure client is available for potential future needs
+    getClient();
 
     try {
         // Get the version to restore

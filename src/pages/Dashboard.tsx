@@ -8,7 +8,7 @@ import { logout } from '../features/authSlice';
 import { formatDistanceToNow } from 'date-fns';
 import {
     Plus, FileText, Edit3, Eye, CheckCircle, LogOut,
-    Settings, Copy, Trash2, MoreVertical
+    Settings, Copy, Trash2
 } from 'lucide-react';
 
 /**

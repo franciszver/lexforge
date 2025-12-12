@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import intakeReducer, { updateField, addFact, removeFact, resetIntake } from './intakeSlice';
-import documentReducer, { updateContent, updateTitle, updateStatus, markClean, clearDocument } from './documentSlice';
-import suggestionsReducer, { setSignals, togglePin, archiveSuggestion, clearSuggestions } from './suggestionsSlice';
+import documentReducer, { updateContent, markClean, clearDocument } from './documentSlice';
+import suggestionsReducer, { setSignals, togglePin, clearSuggestions } from './suggestionsSlice';
 import uiReducer, { toggleRightPanel, setRightPanelTab, setPendingInsertion, clearPendingInsertion } from './uiSlice';
 
 // Mock audit utilities to prevent side effects during tests

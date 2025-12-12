@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import type { Citation, CitationFilter } from './citationTypes';
 import {
-    Citation,
-    CitationFilter,
-    CitationSort,
     matchesCitationFilter,
     sortCitations,
     getUniqueCitationTags,

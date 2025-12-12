@@ -98,10 +98,13 @@ const createTestStore = () => configureStore({
     preloadedState: {
         auth: {
             isAuthenticated: true,
-            email: 'test@example.com',
-            userId: 'user-123',
             isAdmin: false,
+            user: {
+                email: 'test@example.com',
+                userId: 'user-123',
+            },
             loading: false,
+            error: null,
         },
         document: {
             currentDocument: null,
@@ -118,7 +121,7 @@ const createTestStore = () => configureStore({
             suggestions: [],
             archivedSuggestions: [],
             collapsedIds: [],
-            signals: { formality: 'moderate', riskAppetite: 'moderate', stickiness: 'medium' },
+            signals: { formality: 'moderate' as const, riskAppetite: 'moderate' as const, stickiness: 'medium' as const },
             approverPov: null,
             suggestionCount: 5,
             isGenerating: false,
@@ -127,8 +130,8 @@ const createTestStore = () => configureStore({
         },
         ui: {
             rightPanelOpen: true,
-            rightPanelTab: 'suggestions',
-            fontSize: 'medium',
+            rightPanelTab: 'suggestions' as const,
+            fontSize: 'medium' as const,
             showNewDocModal: false,
             showShareModal: false,
             showDeleteConfirm: null,

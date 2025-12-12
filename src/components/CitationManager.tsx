@@ -23,9 +23,8 @@ import {
     Globe,
     BookMarked,
 } from 'lucide-react';
+import type { Citation, CitationType } from '../utils/citationTypes';
 import {
-    Citation,
-    CitationType,
     CITATION_TYPES,
     LEGAL_CATEGORIES,
     JURISDICTIONS,

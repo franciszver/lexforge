@@ -10,11 +10,11 @@ import {
     ChevronRight,
     RefreshCw,
     X,
-    Tag,
     MapPin,
     TrendingUp,
 } from 'lucide-react';
-import { Clause, CLAUSE_CATEGORIES } from '../utils/clauseTypes';
+import type { Clause } from '../utils/clauseTypes';
+import { CLAUSE_CATEGORIES } from '../utils/clauseTypes';
 import { getSuggestedClauses, getClausesByCategory } from '../utils/clauseService';
 
 // ============================================

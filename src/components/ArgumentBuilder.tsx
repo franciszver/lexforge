@@ -200,16 +200,16 @@ function ArgumentCard({
                     <div>
                         <h4 className="text-sm font-medium text-slate-700 mb-2">Supporting Points</h4>
                         <div className="space-y-2">
-                            {argument.supportingPoints.map((point, idx) => (
+                            {argument.supportingPoints.map((point) => (
                                 <div key={point.id} className="flex items-start gap-2 text-sm">
                                     <span className={`mt-1 px-1.5 py-0.5 text-xs rounded ${getStrengthColor(point.strength)}`}>
                                         {point.type}
                                     </span>
                                     <div>
                                         <p className="text-slate-700">{point.text}</p>
-                                        {point.citations?.length > 0 && (
+                                        {(point.citations?.length ?? 0) > 0 && (
                                             <p className="text-xs text-slate-500 mt-1">
-                                                Citations: {point.citations.join('; ')}
+                                                Citations: {point.citations!.join('; ')}
                                             </p>
                                         )}
                                     </div>
@@ -417,7 +417,7 @@ export function ArgumentBuilder({
     const [desiredOutcome, setDesiredOutcome] = useState('');
     const [clientPosition, setClientPosition] = useState<string>('plaintiff');
     const [opposingArguments, setOpposingArguments] = useState<string[]>([]);
-    const [constraints, setConstraints] = useState<string[]>([]);
+    const [constraints, _setConstraints] = useState<string[]>([]);
     const [tone, setTone] = useState<'aggressive' | 'moderate' | 'conservative'>('moderate');
     
     // Output state
@@ -545,29 +545,30 @@ export function ArgumentBuilder({
         }
     }, [outline]);
     
-    const handleGenerateCounters = useCallback(async (argIndex: number) => {
+    // Counter-arguments generation handler - available for future UI integration
+    void function handleGenerateCounters(argIndex: number) {
         if (!outline) return;
         
         const arg = outline.arguments[argIndex];
         setLoading(true);
         setError(null);
         
-        try {
-            const counters = await generateCounterArguments(arg.thesis, jurisdiction, documentType);
-            
-            // Merge new counter-arguments
-            const updatedArg = {
-                ...arg,
-                counterArguments: [...arg.counterArguments, ...counters],
-            };
-            
-            setOutline(updateArgumentInOutline(outline, updatedArg));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to generate counter-arguments');
-        } finally {
-            setLoading(false);
-        }
-    }, [outline, jurisdiction, documentType]);
+        generateCounterArguments(arg.thesis, jurisdiction, documentType)
+            .then(counters => {
+                // Merge new counter-arguments
+                const updatedArg = {
+                    ...arg,
+                    counterArguments: [...arg.counterArguments, ...counters],
+                };
+                setOutline(updateArgumentInOutline(outline, updatedArg));
+            })
+            .catch(err => {
+                setError(err instanceof Error ? err.message : 'Failed to generate counter-arguments');
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    };
     
     const handleSaveDraft = useCallback(() => {
         if (!outline) return;
@@ -938,7 +939,7 @@ export function ArgumentBuilder({
                                 key={arg.id}
                                 argument={arg}
                                 index={index}
-                                onEdit={(a) => {/* TODO: Edit modal */}}
+                                onEdit={(_a) => {/* TODO: Edit modal */}}
                                 onDelete={handleDeleteArgument}
                                 onMoveUp={index > 0 ? () => handleMoveArgument(index, 'up') : undefined}
                                 onMoveDown={index < outline.arguments.length - 1 ? () => handleMoveArgument(index, 'down') : undefined}
@@ -1021,8 +1022,8 @@ export function ArgumentBuilder({
                                         {arg.supportingPoints.map(point => (
                                             <li key={point.id}>
                                                 {point.text}
-                                                {point.citations?.length > 0 && (
-                                                    <em> ({point.citations.join('; ')})</em>
+                                                {(point.citations?.length ?? 0) > 0 && (
+                                                    <em> ({point.citations!.join('; ')})</em>
                                                 )}
                                             </li>
                                         ))}

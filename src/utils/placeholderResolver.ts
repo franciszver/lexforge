@@ -4,7 +4,7 @@
  */
 
 import { format as formatDate, parseISO } from 'date-fns';
-import {
+import type {
     PlaceholderDefinition,
     PlaceholderValues,
     ResolutionResult,
@@ -12,6 +12,8 @@ import {
     ValidationError,
     TemplateSection,
     SectionCondition,
+} from './templateTypes';
+import {
     PLACEHOLDER_REGEX,
     extractPlaceholders,
 } from './templateTypes';
@@ -367,7 +369,7 @@ export function generatePreview(
 ): string {
     const definitionMap = new Map(definitions?.map(d => [d.name, d]) || []);
 
-    return content.replace(PLACEHOLDER_REGEX, (match, name) => {
+    return content.replace(PLACEHOLDER_REGEX, (_match, name) => {
         const value = values[name];
         const definition = definitionMap.get(name);
 
