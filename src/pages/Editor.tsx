@@ -20,6 +20,8 @@ import { RightPanel, StatusBar } from '../components';
 import { PresenceIndicator, usePresenceEditing } from '../components/PresenceIndicator';
 import { ConflictDialog } from '../components/ConflictDialog';
 import { useContentSync } from '../hooks/useContentSync';
+import { useCursorSync } from '../hooks/useCursorSync';
+import { CollaborationCursor } from '../extensions/CollaborationCursor';
 import type { DocumentSyncState, UserPresence } from '../utils/presenceTypes';
 import {
     FileText, LayoutList, Sparkles, Download, Share2,
@@ -51,7 +53,6 @@ export const Editor = () => {
     
     // Content sync hook
     const {
-        localVersion,
         isSyncing,
         syncContent,
         forceSave: forceSyncSave,
@@ -93,7 +94,13 @@ export const Editor = () => {
     }, [currentDocument, isDirty]);
 
     const editor = useEditor({
-        extensions: [StarterKit],
+        extensions: [
+            StarterKit,
+            CollaborationCursor.configure({
+                throttleDelay: 100,
+                currentUserId: auth.user?.userId,
+            }),
+        ],
         content: currentDocument?.content || '',
         onUpdate: ({ editor }) => {
             const html = editor.getHTML();
@@ -115,6 +122,14 @@ export const Editor = () => {
                 class: 'tiptap-editor focus:outline-none min-h-[600px]',
             },
         },
+    });
+    
+    // Cursor synchronization for live collaboration
+    // The hook manages cursor updates internally via the TipTap extension
+    useCursorSync({
+        editor,
+        userId: auth.user?.userId || '',
+        enabled: !!id && !!auth.user,
     });
 
     // Update editor content when document loads

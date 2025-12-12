@@ -414,3 +414,74 @@
     @apply border-slate-300;
   }
 }
+
+/* ============================================
+   Collaboration Cursors
+   ============================================ */
+
+/* Remote cursor caret */
+.collaboration-cursor {
+  position: relative;
+  pointer-events: none;
+  word-break: normal;
+}
+
+/* Cursor label (username) */
+.collaboration-cursor-label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px 3px 3px 0;
+  white-space: nowrap;
+  color: white;
+  pointer-events: none;
+  user-select: none;
+  z-index: 50;
+  animation: cursorLabelFadeIn 0.15s ease-out;
+}
+
+/* Selection highlight from remote users */
+.collaboration-selection {
+  position: relative;
+}
+
+/* Cursor blink animation */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes cursorLabelFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Make cursor visible when in the editor */
+.tiptap-editor .collaboration-cursor {
+  display: inline;
+}
+
+/* Ensure cursor label is above other content */
+.tiptap-editor .ProseMirror {
+  position: relative;
+}
+
+/* Active cursor indicator badge */
+.cursor-sync-badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full;
+  @apply bg-green-100 text-green-700;
+}
+
+.cursor-sync-badge.inactive {
+  @apply bg-slate-100 text-slate-500;
+}

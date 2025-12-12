@@ -187,6 +187,96 @@ export async function updateCursor(
     }
 }
 
+// ============================================
+// Throttled Cursor Updates
+// ============================================
+
+let cursorUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+let lastCursorUpdate = 0;
+const CURSOR_THROTTLE_MS = 100; // 100ms throttle for cursor updates
+
+/**
+ * Throttled cursor position update
+ * Call this frequently (e.g., on every selection change) - it will throttle automatically
+ */
+export function updateCursorThrottled(
+    position: number,
+    selection?: { from: number; to: number }
+): void {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastCursorUpdate;
+    
+    // Convert position to CursorPosition format
+    const cursorPos: CursorPosition = { line: 0, column: position };
+    const selectionRange: SelectionRange | null = selection
+        ? { start: { line: 0, column: selection.from }, end: { line: 0, column: selection.to } }
+        : null;
+    
+    // Clear any pending update
+    if (cursorUpdateTimeout) {
+        clearTimeout(cursorUpdateTimeout);
+        cursorUpdateTimeout = null;
+    }
+    
+    if (timeSinceLastUpdate >= CURSOR_THROTTLE_MS) {
+        // Enough time has passed, update immediately
+        lastCursorUpdate = now;
+        void updateCursor(cursorPos, selectionRange);
+    } else {
+        // Schedule update for remaining time
+        cursorUpdateTimeout = setTimeout(() => {
+            lastCursorUpdate = Date.now();
+            cursorUpdateTimeout = null;
+            void updateCursor(cursorPos, selectionRange);
+        }, CURSOR_THROTTLE_MS - timeSinceLastUpdate);
+    }
+}
+
+// ============================================
+// Cursor Data Conversion
+// ============================================
+
+/**
+ * Convert presences to cursor data for TipTap extension
+ */
+export interface TipTapCursorData {
+    id: string;
+    name: string;
+    color: string;
+    position: number;
+    selection?: {
+        from: number;
+        to: number;
+    };
+}
+
+export function presencesToCursors(presences: UserPresence[]): TipTapCursorData[] {
+    return presences
+        .filter(p => p.cursorPosition !== null) // Only include presences with cursor data
+        .map(p => {
+            const cursorPos = p.cursorPosition as CursorPosition | null;
+            const selRange = p.selectionRange as SelectionRange | null;
+            
+            return {
+                id: p.userId,
+                name: p.userName || p.userEmail || 'Anonymous',
+                color: p.userColor,
+                position: cursorPos?.column ?? 0,
+                selection: selRange ? {
+                    from: selRange.start.column,
+                    to: selRange.end.column,
+                } : undefined,
+            };
+        });
+}
+
+/**
+ * Get current session ID
+ */
+export function getCurrentSessionId(): string {
+    return state.sessionId;
+}
+
 /**
  * Get all active presences for a document
  */
