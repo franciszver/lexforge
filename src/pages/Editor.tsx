@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -17,6 +17,10 @@ import {
 import { toggleRightPanel, setShowShareModal, clearPendingInsertion } from '../features/uiSlice';
 import { generateSuggestions } from '../features/suggestionsSlice';
 import { RightPanel, StatusBar } from '../components';
+import { PresenceIndicator, usePresenceEditing } from '../components/PresenceIndicator';
+import { ConflictDialog } from '../components/ConflictDialog';
+import { useContentSync } from '../hooks/useContentSync';
+import type { DocumentSyncState, UserPresence } from '../utils/presenceTypes';
 import {
     FileText, LayoutList, Sparkles, Download, Share2,
     Bold, Italic, List, ListOrdered, Undo, Redo, PanelRight, Save
@@ -34,8 +38,32 @@ export const Editor = () => {
     const { currentDocument, isDirty, isAutosaving, loading } = useAppSelector((state) => state.document);
     const { rightPanelOpen, pendingInsertion } = useAppSelector((state) => state.ui);
     const { isGenerating } = useAppSelector((state) => state.suggestions);
+    const auth = useAppSelector((state) => state.auth);
 
     const autosaveRef = useRef<ReturnType<typeof debounce> | null>(null);
+    
+    // Presence state
+    const [showConflictDialog, setShowConflictDialog] = useState(false);
+    const [conflictServerState, setConflictServerState] = useState<DocumentSyncState | null>(null);
+    
+    // Presence editing hooks
+    const { startEditing, stopEditing } = usePresenceEditing();
+    
+    // Content sync hook
+    const {
+        localVersion,
+        isSyncing,
+        syncContent,
+        forceSave: forceSyncSave,
+        resolveConflict,
+    } = useContentSync({
+        documentId: id || '',
+        userId: auth.user?.userId || '',
+        onConflict: (_localVer, serverSt) => {
+            setConflictServerState(serverSt);
+            setShowConflictDialog(true);
+        },
+    });
 
     // Load document on mount
     useEffect(() => {
@@ -68,7 +96,19 @@ export const Editor = () => {
         extensions: [StarterKit],
         content: currentDocument?.content || '',
         onUpdate: ({ editor }) => {
-            dispatch(updateContent(editor.getHTML()));
+            const html = editor.getHTML();
+            dispatch(updateContent(html));
+            
+            // Sync content to server (debounced)
+            if (id) {
+                syncContent(html);
+            }
+        },
+        onFocus: () => {
+            startEditing();
+        },
+        onBlur: () => {
+            stopEditing();
         },
         editorProps: {
             attributes: {
@@ -151,6 +191,30 @@ export const Editor = () => {
     const handleShare = useCallback(() => {
         dispatch(setShowShareModal(true));
     }, [dispatch]);
+    
+    // Handle presence updates (can be used for UI indicators)
+    const handlePresenceChange = useCallback((_presences: UserPresence[]) => {
+        // Presences are displayed in the PresenceIndicator component
+        // This callback can be used for additional UI updates if needed
+    }, []);
+    
+    // Handle conflict resolution
+    const handleKeepLocal = useCallback(async () => {
+        if (currentDocument?.content) {
+            await forceSyncSave(currentDocument.content);
+        }
+        resolveConflict('keep-local');
+        setShowConflictDialog(false);
+    }, [currentDocument, forceSyncSave, resolveConflict]);
+    
+    const handleTakeServer = useCallback(async () => {
+        // Reload document from server
+        if (id) {
+            await dispatch(loadDocument(id));
+        }
+        resolveConflict('take-server');
+        setShowConflictDialog(false);
+    }, [id, dispatch, resolveConflict]);
 
     if (loading) {
         return (
@@ -230,6 +294,18 @@ export const Editor = () => {
                             <option value="review">In Review</option>
                             <option value="final">Final</option>
                         </select>
+
+                        <div className="h-6 w-px bg-slate-200" />
+                        
+                        {/* Presence indicator */}
+                        {id && currentDocument && auth.user && (
+                            <PresenceIndicator
+                                documentId={id}
+                                documentOwnerId={auth.user.userId}
+                                compact={true}
+                                onPresenceChange={handlePresenceChange}
+                            />
+                        )}
 
                         <div className="h-6 w-px bg-slate-200" />
 
@@ -368,6 +444,26 @@ export const Editor = () => {
 
             {/* Status bar */}
             <StatusBar />
+            
+            {/* Conflict dialog */}
+            {showConflictDialog && conflictServerState && (
+                <ConflictDialog
+                    isOpen={showConflictDialog}
+                    onClose={() => setShowConflictDialog(false)}
+                    localVersion={localVersion}
+                    serverState={conflictServerState}
+                    onKeepLocal={handleKeepLocal}
+                    onTakeServer={handleTakeServer}
+                />
+            )}
+            
+            {/* Sync indicator */}
+            {isSyncing && (
+                <div className="fixed bottom-20 right-4 bg-blue-500 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg">
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Syncing...
+                </div>
+            )}
         </div>
     );
 };

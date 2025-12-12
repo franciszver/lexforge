@@ -243,6 +243,62 @@ const schema = a.schema({
       allow.owner(),
     ]),
 
+  // ============================================
+  // REAL-TIME COLLABORATION
+  // ============================================
+
+  // Presence tracking for documents
+  DocumentPresence: a.model({
+    documentId: a.string().required(),
+    documentOwnerId: a.string().required(), // Owner of the document
+    
+    // User info
+    userId: a.string().required(),
+    userEmail: a.string(),
+    userName: a.string(),
+    userColor: a.string(),             // Assigned color for cursor/avatar
+    
+    // Presence state
+    status: a.string().required(),     // 'viewing' | 'editing' | 'idle' | 'disconnected'
+    lastHeartbeat: a.datetime().required(),
+    
+    // Cursor/selection position (for live cursors in future phases)
+    cursorPosition: a.json(),          // { line, column } or null
+    selectionRange: a.json(),          // { start: { line, col }, end: { line, col } } or null
+    
+    // Session info
+    sessionId: a.string(),
+    joinedAt: a.datetime().required(),
+  })
+    .secondaryIndexes((index) => [
+      index('documentId').sortKeys(['lastHeartbeat']).name('documentId-heartbeat-index'),
+      index('userId').sortKeys(['documentId']).name('userId-document-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read', 'update', 'delete']),
+    ]),
+
+  // Document sync state for conflict detection
+  DocumentSyncState: a.model({
+    documentId: a.string().required(),
+    
+    // Version tracking
+    version: a.integer().required(),
+    lastModifiedBy: a.string(),
+    lastModifiedAt: a.datetime().required(),
+    
+    // Content hash for quick conflict detection
+    contentHash: a.string(),
+    
+    // Lock state for editing
+    lockedBy: a.string(),              // userId who has edit lock, or null
+    lockExpiresAt: a.datetime(),       // Auto-expire locks
+  })
+    .identifier(['documentId'])
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read', 'update']),
+    ]),
+
   // Analytics events for tracking usage
   AnalyticsEvent: a.model({
     eventType: a.string().required(), // 'document_created', 'ai_suggestion', 'suggestion_accepted', 'export'
