@@ -1,6 +1,40 @@
 /**
  * Presence Service
  * Manages real-time presence tracking for document collaboration.
+ * 
+ * ## Architecture (RTC-2 & RTC-3 Alignment)
+ * 
+ * This service handles:
+ * - User presence (who's viewing/editing a document)
+ * - Cursor positions and selections
+ * - Status updates (viewing, editing, idle)
+ * - Real-time subscriptions via AppSync
+ * 
+ * ## RTC-3 Integration Notes:
+ * 
+ * When Y.js is integrated (Phase RTC-3), this service will work alongside it:
+ * 
+ * 1. **Y.js Awareness** - Real-time, ephemeral cursor positions (sub-100ms updates)
+ *    - Used for live cursor rendering during active editing
+ *    - In-memory only, no persistence
+ * 
+ * 2. **This Presence Service** - Persisted presence state
+ *    - User status (viewing/editing/idle)
+ *    - Connection state tracking
+ *    - Cursor positions for users who may have disconnected
+ *    - Audit trail of who was editing when
+ * 
+ * The hybrid approach provides:
+ * - Fast cursor updates via Y.js awareness (when connected)
+ * - Persistent presence tracking (survives page refreshes)
+ * - Historical data for audit logging
+ * 
+ * ## Related Models:
+ * - DocumentPresence: Real-time presence tracking (this service)
+ * - DocumentSyncState: Conflict detection for content sync
+ * - YjsDocumentState: Y.js CRDT state persistence (RTC-3)
+ * - Comment: Document comments (RTC-3)
+ * - DocumentVersion: Version history (RTC-3)
  */
 
 import { generateClient } from 'aws-amplify/data';
@@ -166,6 +200,9 @@ export async function leaveCurrentDocument(): Promise<void> {
             statusUpdateTimeout = null;
         }
         pendingStatusUpdate = null;
+        // Clear cursor data
+        lastCursorPosition = null;
+        lastSelectionRange = null;
         state.currentPresenceId = null;
         state.documentId = null;
     }
@@ -176,6 +213,11 @@ let lastStatusUpdate = 0;
 let pendingStatusUpdate: PresenceStatus | null = null;
 let statusUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 const STATUS_UPDATE_THROTTLE_MS = 2000; // Only update status every 2 seconds
+
+// Track last cursor position for combining with status updates
+// (declared here before functions that use them)
+let lastCursorPosition: CursorPosition | null = null;
+let lastSelectionRange: SelectionRange | null = null;
 
 /**
  * Update presence status (throttled to prevent rapid toggling)
@@ -215,6 +257,7 @@ export async function updateStatus(status: PresenceStatus): Promise<void> {
 
 /**
  * Internal function to actually perform the status update
+ * Includes last known cursor position to prevent it being overwritten
  */
 async function doUpdateStatus(status: PresenceStatus): Promise<void> {
     if (!state.currentPresenceId) return;
@@ -222,11 +265,21 @@ async function doUpdateStatus(status: PresenceStatus): Promise<void> {
     const client = getClient();
     
     try {
-        await client.models.DocumentPresence.update({
+        // Include cursor data to prevent it from being cleared
+        const updateData: Record<string, unknown> = {
             id: state.currentPresenceId,
             status,
             lastHeartbeat: new Date().toISOString(),
-        });
+        };
+        
+        // Always include cursor data if we have it
+        if (lastCursorPosition !== null) {
+            updateData.cursorPosition = lastCursorPosition;
+            updateData.selectionRange = lastSelectionRange;
+        }
+        
+        console.log('[Presence] Updating status with cursor:', status, lastCursorPosition);
+        await client.models.DocumentPresence.update(updateData as Parameters<typeof client.models.DocumentPresence.update>[0]);
     } catch (error) {
         console.error('Error updating status:', error);
     }
@@ -241,6 +294,10 @@ export async function updateCursor(
 ): Promise<void> {
     if (!state.currentPresenceId) return;
     
+    // Store for status updates to include
+    lastCursorPosition = position;
+    lastSelectionRange = selection;
+    
     const client = getClient();
     
     try {
@@ -249,6 +306,7 @@ export async function updateCursor(
             id: state.currentPresenceId,
             cursorPosition: position,
             selectionRange: selection,
+            status: 'editing', // User is editing when cursor moves
             lastHeartbeat: new Date().toISOString(),
         });
     } catch (error) {
@@ -491,6 +549,13 @@ function startPresenceSubscription(documentId: string): void {
                     
                     // Fetch all presences and notify subscribers
                     const presences = await getDocumentPresences(documentId);
+                    
+                    // Log the full presence data including cursors
+                    console.log(`[Presence] Full presence data fetched:`, presences.map(p => ({
+                        userId: p.userId,
+                        status: p.status,
+                        cursor: p.cursorPosition,
+                    })));
                     
                     // Double-check documentId hasn't changed during async operation
                     if (state.documentId === documentId) {

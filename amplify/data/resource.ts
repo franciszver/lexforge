@@ -311,6 +311,114 @@ const schema = a.schema({
       allow.group('Admins').to(['read']), // Admins can read all events for analytics
     ]),
 
+  // ============================================
+  // RTC-3: COMMENTS & VERSION HISTORY
+  // ============================================
+
+  // Document comments with thread support
+  Comment: a.model({
+    documentId: a.string().required(),
+    
+    // Thread grouping (null for root comments)
+    threadId: a.string(),              // ID of the root comment for replies
+    parentCommentId: a.string(),       // Direct parent for nested replies
+    
+    // Author info
+    authorId: a.string().required(),
+    authorName: a.string(),
+    authorEmail: a.string(),
+    
+    // Content
+    content: a.string().required(),    // Comment text (markdown supported)
+    
+    // Position in document (for anchored comments)
+    anchorPosition: a.json(),          // { from: number, to: number } - TipTap/ProseMirror positions
+    anchorText: a.string(),            // The selected text when comment was created
+    
+    // Status
+    status: a.string().required(),     // 'active' | 'resolved' | 'deleted'
+    resolvedBy: a.string(),            // userId who resolved
+    resolvedAt: a.datetime(),
+    
+    // Metadata
+    commentCreatedAt: a.datetime(),    // Explicit timestamp for sorting (createdAt is auto-generated)
+    editedAt: a.datetime(),            // Last edit timestamp
+    replyCount: a.integer().default(0), // Cached count for performance
+  })
+    .secondaryIndexes((index) => [
+      index('documentId').sortKeys(['commentCreatedAt']).name('documentId-createdAt-index'),
+      index('threadId').sortKeys(['commentCreatedAt']).name('threadId-createdAt-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read']),
+      allow.owner().to(['update', 'delete']),
+    ]),
+
+  // Document version history for snapshots and rollback
+  DocumentVersion: a.model({
+    documentId: a.string().required(),
+    
+    // Version info
+    versionNumber: a.integer().required(),
+    
+    // Content snapshot
+    content: a.string().required(),    // Full document HTML at this version
+    contentHash: a.string(),           // SHA-256 hash for comparison
+    
+    // Metadata snapshot
+    title: a.string(),
+    metadata: a.json(),                // Document metadata at this version
+    
+    // Author info
+    createdBy: a.string().required(),
+    createdByName: a.string(),
+    
+    // Change info
+    changeType: a.string().required(), // 'auto_save' | 'manual_save' | 'before_ai_edit' | 'rollback' | 'merge'
+    changeDescription: a.string(),     // User-provided or auto-generated description
+    
+    // Diff info (for efficient comparison)
+    previousVersionId: a.string(),     // Reference to previous version
+    diffFromPrevious: a.json(),        // Optional: JSON diff for storage efficiency
+    
+    // Size tracking
+    contentLength: a.integer(),        // Character count
+    wordCount: a.integer(),
+    
+    // Explicit timestamp for sorting
+    versionCreatedAt: a.datetime(),    // Explicit timestamp (createdAt is auto-generated)
+  })
+    .secondaryIndexes((index) => [
+      index('documentId').sortKeys(['versionNumber']).name('documentId-version-index'),
+      index('documentId').sortKeys(['versionCreatedAt']).name('documentId-createdAt-index'),
+    ])
+    .authorization((allow) => [
+      allow.owner(),
+      allow.authenticated().to(['read']), // Collaborators can view versions
+    ]),
+
+  // Y.js document state for CRDT-based editing (RTC-3)
+  // This stores the Y.js binary state for persistence
+  YjsDocumentState: a.model({
+    documentId: a.string().required(),
+    
+    // Y.js state
+    yjsState: a.string(),              // Base64 encoded Y.js state vector
+    yjsUpdate: a.string(),             // Base64 encoded latest update
+    
+    // Metadata
+    lastModifiedBy: a.string(),
+    lastModifiedAt: a.datetime().required(),
+    
+    // Sync info
+    stateVector: a.string(),           // Base64 encoded state vector for sync
+    clientCount: a.integer().default(0), // Number of connected clients
+  })
+    .identifier(['documentId'])
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read', 'update']),
+    ]),
+
   // Custom Query to call Lambda for suggestions
   askAI: a.query()
     .arguments({
