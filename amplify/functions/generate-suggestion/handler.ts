@@ -88,12 +88,12 @@ async function searchRelevantClauses(
         
         const scoredClauses = result.Items.map((clause) => {
             let score = 0;
-            const clauseContent = (clause.content || '').toLowerCase();
-            const clauseTitle = (clause.title || '').toLowerCase();
-            const clauseCategory = (clause.category || '').toLowerCase();
+            const clauseContent = String(clause.content || '').toLowerCase();
+            const clauseTitle = String(clause.title || '').toLowerCase();
+            const clauseCategory = String(clause.category || '').toLowerCase();
             const clauseTags = parseJsonField<string[]>(clause.tags, []);
             const clauseDocTypes = parseJsonField<string[]>(clause.documentTypes, []);
-            const clauseJurisdiction = (clause.jurisdiction || '').toLowerCase();
+            const clauseJurisdiction = String(clause.jurisdiction || '').toLowerCase();
             
             // Score by keyword matches
             for (const keyword of keywords) {
@@ -114,22 +114,23 @@ async function searchRelevantClauses(
             }
             
             // Boost by usage count
-            score += Math.min((clause.usageCount || 0) / 10, 5);
+            const usageCount = typeof clause.usageCount === 'number' ? clause.usageCount : 0;
+            score += Math.min(usageCount / 10, 5);
             
             return {
-                id: clause.id,
-                title: clause.title,
-                content: clause.content,
-                category: clause.category,
-                description: clause.description,
+                id: String(clause.id || ''),
+                title: String(clause.title || ''),
+                content: String(clause.content || ''),
+                category: String(clause.category || ''),
+                description: String(clause.description || ''),
                 relevanceScore: score,
             };
         });
         
         // Return top 5 most relevant clauses
         return scoredClauses
-            .filter(c => c.relevanceScore > 0)
-            .sort((a, b) => b.relevanceScore - a.relevanceScore)
+            .filter((c: ClauseMatch) => c.relevanceScore > 0)
+            .sort((a: ClauseMatch, b: ClauseMatch) => b.relevanceScore - a.relevanceScore)
             .slice(0, 5);
     } catch (error) {
         console.warn('Error searching clauses:', error);

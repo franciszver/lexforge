@@ -28,50 +28,20 @@ import {
     DOCUMENT_TYPES,
 } from '../utils/clauseTypes';
 import {
-    searchClauses as searchClausesService,
+    searchClauses,
     getPopularClauses,
     getRecentClauses,
     incrementClauseUsage,
     addToFavorites,
     removeFromFavorites,
     getUserFavoritesWithClauses,
-    type Clause as ServiceClause,
 } from '../utils/clauseService';
-
-// Helper to map service clause to component clause
-function mapServiceClauseToClause(sc: ServiceClause): Clause {
-    return {
-        id: sc.id,
-        title: sc.title,
-        content: sc.content,
-        description: sc.description,
-        category: sc.category,
-        subcategory: sc.subcategory,
-        tags: sc.tags || [],
-        jurisdiction: sc.jurisdiction,
-        documentTypes: sc.documentTypes || [],
-        usageCount: sc.usageCount,
-        lastUsedAt: sc.lastUsedAt,
-        variations: sc.variations || [],
-        placeholders: (sc.placeholders || []) as unknown as Clause['placeholders'],
-        isPublished: true,
-        isFavorite: false,
-        createdAt: sc.createdAt,
-        updatedAt: sc.updatedAt,
-    };
-}
-
-// Wrapper for searchClauses with proper typing
-async function searchClauses(params: { query?: string; category?: string; jurisdiction?: string; documentType?: string }): Promise<Clause[]> {
-    const results = await searchClausesService(params);
-    return results.map(mapServiceClauseToClause);
-}
 
 // Wrapper for getUserFavorites that returns the expected structure
 async function getUserFavorites(): Promise<Array<{ clause: Clause; favorite: { id: string } }>> {
     const results = await getUserFavoritesWithClauses();
     return results.map(r => ({
-        clause: mapServiceClauseToClause(r.clause),
+        clause: r.clause,
         favorite: { id: r.favoriteId },
     }));
 }
@@ -334,22 +304,27 @@ export function ClauseLibrary({
             let result: Clause[] = [];
 
             switch (viewMode) {
-                case 'popular':
+                case 'popular': {
                     result = await getPopularClauses(20);
                     break;
-                case 'recent':
+                }
+                case 'recent': {
                     result = await getRecentClauses(20);
                     break;
-                case 'favorites':
+                }
+                case 'favorites': {
                     const favs = await getUserFavorites();
                     result = favs.map(f => ({ ...f.clause, isFavorite: true }));
                     break;
-                default:
-                    const searchResult = await searchClauses(
-                        { ...filter, searchQuery: searchQuery || undefined },
-                        sort
-                    );
-                    result = searchResult.clauses;
+                }
+                default: {
+                    result = await searchClauses({
+                        query: searchQuery || undefined,
+                        category: filter.category,
+                        jurisdiction: filter.jurisdiction,
+                        documentType: filter.documentType,
+                    });
+                }
             }
 
             setClauses(result);
@@ -402,23 +377,29 @@ export function ClauseLibrary({
 
         if (favoriteId) {
             // Remove from favorites
-            const success = await removeFromFavorites(favoriteId);
-            if (success) {
+            try {
+                await removeFromFavorites(favoriteId);
                 setFavorites(prev => {
                     const newMap = new Map(prev);
                     newMap.delete(clause.id);
                     return newMap;
                 });
+            } catch (error) {
+                console.error('Error removing from favorites:', error);
             }
         } else {
             // Add to favorites
-            const favorite = await addToFavorites(clause.id);
-            if (favorite) {
-                setFavorites(prev => {
-                    const newMap = new Map(prev);
-                    newMap.set(clause.id, favorite.id);
-                    return newMap;
-                });
+            try {
+                const newFavoriteId = await addToFavorites(clause.id);
+                if (newFavoriteId) {
+                    setFavorites(prev => {
+                        const newMap = new Map(prev);
+                        newMap.set(clause.id, newFavoriteId);
+                        return newMap;
+                    });
+                }
+            } catch (error) {
+                console.error('Error adding to favorites:', error);
             }
         }
     }, [favorites]);

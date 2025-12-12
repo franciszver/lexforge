@@ -7,47 +7,15 @@
 
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
+import type { Clause, ClauseVariation } from './clauseTypes';
+import type { PlaceholderDefinition } from './templateTypes';
+
+// Re-export types for convenience
+export type { Clause, ClauseVariation } from './clauseTypes';
 
 // ============================================
 // Types
 // ============================================
-
-export interface Clause {
-    id: string;
-    title: string;
-    content: string;
-    description?: string;
-    category: string;
-    subcategory?: string;
-    tags: string[];
-    jurisdiction?: string;
-    documentTypes: string[];
-    usageCount: number;
-    lastUsedAt?: string;
-    variations: ClauseVariation[];
-    placeholders: ClausePlaceholder[];
-    isPublished: boolean;
-    isFavorite?: boolean;
-    author?: string;
-    notes?: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface ClauseVariation {
-    jurisdiction: string;
-    content: string;
-    notes?: string;
-}
-
-export interface ClausePlaceholder {
-    name: string;
-    type: 'text' | 'date' | 'number' | 'select';
-    label: string;
-    required: boolean;
-    defaultValue?: string;
-    options?: string[];
-}
 
 export interface ClauseSearchParams {
     query?: string;
@@ -428,7 +396,7 @@ function mapClause(data: any): Clause {
         usageCount: data.usageCount || 0,
         lastUsedAt: data.lastUsedAt || undefined,
         variations: parseJsonField<ClauseVariation[]>(data.variations, []),
-        placeholders: parseJsonField<ClausePlaceholder[]>(data.placeholders, []),
+        placeholders: parseJsonField<PlaceholderDefinition[]>(data.placeholders, []),
         isPublished: data.isPublished ?? true,
         isFavorite: data.isFavorite ?? false,
         author: data.author || undefined,
