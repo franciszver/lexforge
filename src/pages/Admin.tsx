@@ -4,11 +4,12 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 import { 
     Plus, ArrowLeft, Edit2, Trash2, X, FileText, Users, Settings, 
-    BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen, Activity, PieChart, Scale
+    BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen, Activity, PieChart, Scale, Gavel
 } from 'lucide-react';
 import { AuditLogViewer } from '../components/AuditLogViewer';
 import { AuditReportGenerator } from '../components/AuditReportGenerator';
 import { ArgumentBuilder } from '../components/ArgumentBuilder';
+import { DocumentFormatter } from '../components/DocumentFormatter';
 
 // Lazy client initialization to avoid "Amplify not configured" errors
 let _client: ReturnType<typeof generateClient<Schema>> | null = null;
@@ -60,7 +61,7 @@ export const Admin = () => {
     const [loadingStats, setLoadingStats] = useState(true);
     
     // Tab state
-    const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'audit' | 'reports' | 'arguments'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'audit' | 'reports' | 'arguments' | 'formatter'>('overview');
     
     // Modal state
     const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -386,6 +387,17 @@ export const Admin = () => {
                             <Scale className="w-4 h-4 inline mr-2" />
                             Arguments
                         </button>
+                        <button
+                            onClick={() => setActiveTab('formatter')}
+                            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                                activeTab === 'formatter'
+                                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                        >
+                            <Gavel className="w-4 h-4 inline mr-2" />
+                            Formatter
+                        </button>
                     </nav>
                 </div>
             </header>
@@ -410,6 +422,16 @@ export const Admin = () => {
                 {activeTab === 'arguments' && (
                     <div className="card p-0 min-h-[600px]">
                         <ArgumentBuilder />
+                    </div>
+                )}
+
+                {/* Formatter Tab */}
+                {activeTab === 'formatter' && (
+                    <div className="card p-0 min-h-[600px]">
+                        <DocumentFormatter 
+                            documentContent="<p>Sample document content for formatting preview.</p><p>Enter your document text in the editor and use this tool to format it according to court-specific rules.</p>"
+                            documentTitle="Sample Document"
+                        />
                     </div>
                 )}
 
