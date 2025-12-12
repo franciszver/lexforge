@@ -171,6 +171,69 @@ const schema = a.schema({
       allow.owner(),
     ]),
 
+  // ============================================
+  // CITATION MANAGER
+  // ============================================
+
+  Citation: a.model({
+    // Core identification
+    title: a.string().required(),          // Case name or statute title (e.g., "Brown v. Board of Education")
+    citation: a.string().required(),       // Full citation string (e.g., "347 U.S. 483 (1954)")
+    
+    // Citation type
+    type: a.string().required(),           // 'case', 'statute', 'regulation', 'constitution', 'secondary', 'treaty'
+    
+    // Detailed fields for cases
+    court: a.string(),                     // e.g., "Supreme Court of the United States", "9th Cir."
+    year: a.integer(),                     // Year of decision
+    volume: a.string(),                    // Reporter volume
+    reporter: a.string(),                  // Reporter name (e.g., "U.S.", "F.3d", "Cal.App.4th")
+    page: a.string(),                      // Starting page
+    pinpoint: a.string(),                  // Specific page reference
+    
+    // Detailed fields for statutes/regulations
+    jurisdiction: a.string(),              // e.g., "Federal", "California", "New York"
+    codeTitle: a.string(),                 // e.g., "42 U.S.C.", "Cal. Civ. Code"
+    section: a.string(),                   // Section number
+    subdivision: a.string(),               // Subsection
+    
+    // Additional metadata
+    shortForm: a.string(),                 // Short citation form (e.g., "Brown, 347 U.S. at 495")
+    parenthetical: a.string(),             // Explanatory parenthetical
+    url: a.string(),                       // Link to online source
+    
+    // Categorization
+    category: a.string(),                  // Legal category (e.g., "Constitutional Law", "Contract Law")
+    tags: a.json(),                        // Array of tags for flexible categorization
+    
+    // Usage tracking
+    usageCount: a.integer().default(0),
+    lastUsedAt: a.datetime(),
+    
+    // Metadata
+    notes: a.string(),                     // Internal notes
+    isVerified: a.boolean().default(false), // Has citation been verified
+    createdBy: a.string(),
+  })
+    .secondaryIndexes((index) => [
+      index('type').sortKeys(['title']).name('type-title-index'),
+      index('jurisdiction').sortKeys(['type']).name('jurisdiction-type-index'),
+      index('category').sortKeys(['title']).name('category-title-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['read', 'create', 'update']),
+      allow.group('Admins').to(['delete']),
+    ]),
+
+  // User's saved/bookmarked citations
+  UserCitationFavorite: a.model({
+    citationId: a.string().required(),
+    notes: a.string(),                     // User's personal notes about the citation
+  })
+    .authorization((allow) => [
+      allow.owner(),
+    ]),
+
   UserProfile: a.model({
     email: a.string(),
     preferences: a.json(),
