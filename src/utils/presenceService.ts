@@ -13,6 +13,19 @@ import type {
     DocumentSyncState,
 } from './presenceTypes';
 import { PRESENCE_CONFIG, getUserColor } from './presenceTypes';
+
+// Valid presence statuses for validation
+const VALID_STATUSES: PresenceStatus[] = ['viewing', 'editing', 'idle', 'disconnected'];
+
+/**
+ * Validate and normalize presence status
+ */
+function validateStatus(status: unknown): PresenceStatus {
+    if (typeof status === 'string' && VALID_STATUSES.includes(status as PresenceStatus)) {
+        return status as PresenceStatus;
+    }
+    return 'viewing'; // Default fallback
+}
 import { v4 as uuidv4 } from 'uuid';
 
 // Lazy client initialization
@@ -36,6 +49,8 @@ interface PresenceServiceState {
     sessionId: string;
     subscribers: Set<(presences: UserPresence[]) => void>;
     syncSubscribers: Set<(state: DocumentSyncState) => void>;
+    // AppSync subscription for real-time updates
+    presenceSubscription: { unsubscribe: () => void } | null;
 }
 
 const state: PresenceServiceState = {
@@ -46,6 +61,7 @@ const state: PresenceServiceState = {
     sessionId: uuidv4(),
     subscribers: new Set(),
     syncSubscribers: new Set(),
+    presenceSubscription: null,
 };
 
 // ============================================
@@ -110,6 +126,9 @@ export async function joinDocument(
             // Start cleanup of stale presences
             startCleanup(documentId);
             
+            // Start AppSync subscription for real-time presence updates
+            startPresenceSubscription(documentId);
+            
             return {
                 id: result.data.id,
                 ...presence,
@@ -140,6 +159,7 @@ export async function leaveCurrentDocument(): Promise<void> {
     } finally {
         stopHeartbeat();
         stopCleanup();
+        stopPresenceSubscription();
         state.currentPresenceId = null;
         state.documentId = null;
     }
@@ -305,7 +325,7 @@ export async function getDocumentPresences(documentId: string): Promise<UserPres
                 userEmail: p.userEmail ?? undefined,
                 userName: p.userName ?? undefined,
                 userColor: p.userColor ?? getUserColor(p.userId),
-                status: (p.status as PresenceStatus) ?? 'viewing',
+                status: validateStatus(p.status),
                 lastHeartbeat: p.lastHeartbeat,
                 cursorPosition: p.cursorPosition as CursorPosition | null,
                 selectionRange: p.selectionRange as SelectionRange | null,
@@ -368,6 +388,151 @@ function stopCleanup(): void {
     if (state.cleanupInterval) {
         clearInterval(state.cleanupInterval);
         state.cleanupInterval = null;
+    }
+}
+
+// ============================================
+// AppSync Real-Time Subscription
+// ============================================
+
+/**
+ * Start AppSync subscription for real-time presence updates
+ * This enables live cursor positions to be received instantly
+ */
+function startPresenceSubscription(documentId: string): void {
+    stopPresenceSubscription();
+    
+    const client = getClient();
+    const subscriptions: Array<{ unsubscribe: () => void }> = [];
+    
+    try {
+        // Handler for presence changes
+        // Note: Must be synchronous wrapper to handle async operations safely
+        const handlePresenceChange = (data: unknown, eventType: string) => {
+            // Use void to fire-and-forget the async operation
+            // Errors are caught and logged internally
+            void (async () => {
+                try {
+                    const presenceData = data as { sessionId?: string; userId?: string; status?: string } | null;
+                    if (!presenceData) return;
+                    
+                    // Don't process our own updates
+                    if (presenceData.sessionId === state.sessionId) return;
+                    
+                    // Verify we're still subscribed to the same document
+                    if (state.documentId !== documentId) {
+                        console.warn('[Presence] Received update for different document, ignoring');
+                        return;
+                    }
+                    
+                    console.log(`[Presence] Real-time ${eventType}:`, presenceData.userId, presenceData.status);
+                    
+                    // Fetch all presences and notify subscribers
+                    const presences = await getDocumentPresences(documentId);
+                    
+                    // Double-check documentId hasn't changed during async operation
+                    if (state.documentId === documentId) {
+                        state.subscribers.forEach(cb => {
+                            try {
+                                cb(presences);
+                            } catch (error) {
+                                console.error('[Presence] Subscriber callback error:', error);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error(`[Presence] Error handling ${eventType} event:`, error);
+                }
+            })();
+        };
+        
+        // Subscribe to presence updates (cursor moves, status changes)
+        const updateSub = client.models.DocumentPresence.onUpdate({
+            filter: {
+                documentId: { eq: documentId },
+            },
+        });
+        
+        subscriptions.push(updateSub.subscribe({
+            next: (data) => handlePresenceChange(data, 'update'),
+            error: (error) => {
+                console.error('[Presence] Update subscription error:', error);
+                // Attempt to restart subscription on error
+                if (state.documentId === documentId) {
+                    console.log('[Presence] Attempting to restart subscription...');
+                    setTimeout(() => {
+                        if (state.documentId === documentId) {
+                            startPresenceSubscription(documentId);
+                        }
+                    }, 5000);
+                }
+            },
+        }));
+        
+        // Subscribe to new users joining
+        const createSub = client.models.DocumentPresence.onCreate({
+            filter: {
+                documentId: { eq: documentId },
+            },
+        });
+        
+        subscriptions.push(createSub.subscribe({
+            next: (data) => handlePresenceChange(data, 'create'),
+            error: (error) => {
+                console.error('[Presence] Create subscription error:', error);
+            },
+        }));
+        
+        // Subscribe to users leaving
+        const deleteSub = client.models.DocumentPresence.onDelete({
+            filter: {
+                documentId: { eq: documentId },
+            },
+        });
+        
+        subscriptions.push(deleteSub.subscribe({
+            next: (data) => handlePresenceChange(data, 'delete'),
+            error: (error) => {
+                console.error('[Presence] Delete subscription error:', error);
+            },
+        }));
+        
+        // Store combined unsubscribe
+        state.presenceSubscription = {
+            unsubscribe: () => {
+                subscriptions.forEach(sub => {
+                    try {
+                        sub.unsubscribe();
+                    } catch (error) {
+                        console.error('[Presence] Error unsubscribing:', error);
+                    }
+                });
+            },
+        };
+        
+        console.log('[Presence] Real-time subscriptions started for document:', documentId);
+    } catch (error) {
+        console.error('[Presence] Failed to start subscriptions:', error);
+        // Clean up any subscriptions that were created before the error
+        subscriptions.forEach(sub => {
+            try {
+                sub.unsubscribe();
+            } catch (unsubError) {
+                console.error('[Presence] Error cleaning up failed subscription:', unsubError);
+            }
+        });
+        state.presenceSubscription = null;
+    }
+}
+
+/**
+ * Stop the presence subscription
+ */
+function stopPresenceSubscription(): void {
+    if (state.presenceSubscription) {
+        state.presenceSubscription.unsubscribe();
+        state.presenceSubscription = null;
+        console.log('[Presence] Real-time subscription stopped');
     }
 }
 
