@@ -118,6 +118,59 @@ const schema = a.schema({
       allow.group('Admins').to(['create', 'update', 'delete']),
     ]),
 
+  // ============================================
+  // CLAUSE LIBRARY
+  // ============================================
+
+  Clause: a.model({
+    // Core fields
+    title: a.string().required(),
+    content: a.string().required(),        // HTML content of the clause
+    description: a.string(),               // Brief description for search results
+    
+    // Categorization
+    category: a.string().required(),       // e.g., 'Indemnification', 'Confidentiality', 'Termination'
+    subcategory: a.string(),               // e.g., 'Mutual', 'One-way'
+    tags: a.json(),                        // Array of tags for flexible categorization
+    
+    // Legal context
+    jurisdiction: a.string(),              // e.g., 'Federal', 'California', 'New York'
+    documentTypes: a.json(),               // Array of compatible doc types: ['Contract', 'NDA', 'Agreement']
+    
+    // Usage tracking
+    usageCount: a.integer().default(0),    // Track popularity
+    lastUsedAt: a.datetime(),
+    
+    // Variations for different contexts
+    variations: a.json(),                  // [{ jurisdiction: 'CA', content: '...', notes: '...' }]
+    
+    // Metadata
+    author: a.string(),                    // Who created it
+    isPublished: a.boolean().default(true),
+    isFavorite: a.boolean().default(false),
+    notes: a.string(),                     // Internal notes for admins
+    
+    // Placeholders within the clause
+    placeholders: a.json(),                // Reuse placeholder definitions from template system
+  })
+    .secondaryIndexes((index) => [
+      index('category').sortKeys(['title']).name('category-title-index'),
+      index('jurisdiction').sortKeys(['category']).name('jurisdiction-category-index'),
+    ])
+    .authorization((allow) => [
+      allow.authenticated().to(['read']),
+      allow.group('Admins').to(['create', 'update', 'delete']),
+    ]),
+
+  // User's favorite/bookmarked clauses
+  UserClauseFavorite: a.model({
+    clauseId: a.string().required(),
+    notes: a.string(),                     // User's personal notes about the clause
+  })
+    .authorization((allow) => [
+      allow.owner(),
+    ]),
+
   UserProfile: a.model({
     email: a.string(),
     preferences: a.json(),
