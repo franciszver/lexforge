@@ -1,10 +1,27 @@
 // Repository for the ShareLink aggregate (passcode-protected document
 // share links, mirroring src/utils/collaborationService.ts).
 
+import { pick } from './pick.js';
+
+// Client-writable fields (see prisma/schema.prisma ShareLink model).
+// Excludes id, lastAccessedAt/lastAccessedBy (set only by
+// incrementShareLinkAccess), and revokedAt/revokedBy (set only by
+// revokeShareLink).
+const WRITABLE_FIELDS = [
+  'documentId',
+  'documentOwnerId',
+  'token',
+  'passcode',
+  'accessLevel',
+  'expiresAt',
+  'accessCount',
+  'isActive',
+];
+
 export async function createShareLink(prisma, data) {
   return prisma.shareLink.create({
     data: {
-      ...data,
+      ...pick(data, WRITABLE_FIELDS),
       accessCount: data.accessCount ?? 0,
       isActive: data.isActive ?? true,
     },
