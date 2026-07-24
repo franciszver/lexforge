@@ -33,9 +33,8 @@ export const checkSession = createAsyncThunk(
       const user = await getCurrentUser();
       const session = await fetchAuthSession();
 
-      // Check if user is admin (based on Cognito groups or custom attribute)
-      const groups = session.tokens?.accessToken?.payload['cognito:groups'] as string[] | undefined;
-      const isAdmin = groups?.includes('admin') ?? false;
+      // Check if user is admin (based on session groups or custom attribute)
+      const isAdmin = session.groups?.includes('admin') ?? false;
 
       return {
         email: user.signInDetails?.loginId || user.username,

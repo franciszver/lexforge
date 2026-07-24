@@ -7,10 +7,9 @@
  * the server-backed `../api/authClient` (POST /auth/* on the Express/Prisma
  * server — see server/src/auth/routes.js).
  *
- * The shapes below (nextStep, signInStep, etc.) are a holdover from this
- * module's origin as a drop-in replacement for a Cognito-flavored auth SDK;
- * kept as local types since authSlice, Login, and Dashboard already consume
- * them.
+ * The shapes below (nextStep, signInStep, etc.) are a minimal auth-session
+ * stub for demo mode; kept as local types since authSlice, Login, and
+ * Dashboard already consume them.
  *
  * The API has no equivalent of email-verification or password-reset flows
  * (v1 has none). Where the contract expects a `nextStep`, those functions
@@ -79,7 +78,7 @@ interface ConfirmResetPasswordInput {
 }
 
 interface AuthSession {
-    tokens: { accessToken: { payload: { 'cognito:groups': string[] } } };
+    groups: string[];
 }
 
 let demoSignedIn = false;
@@ -177,13 +176,11 @@ export async function getCurrentUser(): Promise<AuthUser> {
 
 export async function fetchAuthSession(): Promise<AuthSession> {
     if (isDemoMode) {
-        return { tokens: { accessToken: { payload: { 'cognito:groups': ['admin'] } } } };
+        return { groups: ['admin'] };
     }
     const role = authClient.getStoredAuth()?.user.role;
     const groups = role === 'admin' ? ['admin'] : [];
-    return {
-        tokens: { accessToken: { payload: { 'cognito:groups': groups } } },
-    };
+    return { groups };
 }
 
 export async function signOut(): Promise<void> {
