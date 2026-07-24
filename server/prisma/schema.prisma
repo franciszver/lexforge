@@ -1,5 +1,19 @@
-// Placeholder Prisma schema for the P3.1 scaffold.
-// The real domain schema lands in P3.2.
+// LexForge domain schema (P3.2).
+//
+// Ported from amplify/data/resource.ts + how the frontend services in
+// src/utils/*Service.ts and src/features/*Slice.ts actually use each model.
+// JSON fields that Amplify stored as stringified JSON (because DynamoDB via
+// Amplify Data only exposes a.json() as a string on the wire in this app's
+// usage) are modeled here as proper Postgres `Json` columns.
+//
+// Skipped entirely (zero frontend references, verified dead in P2.1):
+// UserProfile, AnalyticsEvent, Comment, DocumentVersion, YjsDocumentState,
+// TemplateVersion.
+//
+// DocumentPresence / DocumentSyncState: intentionally NOT modeled as tables.
+// Both were ephemeral, heartbeat-driven presence/lock state in DynamoDB;
+// in the Express/Socket.IO backend (P3.6) this lives in memory (or Redis)
+// per realtime connection, not in Postgres.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,7 +24,260 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model HealthCheck {
+// ============================================
+// AUTH
+// ============================================
+
+// Not present in the Amplify schema (Cognito owned identity there). Added
+// for JWT-based auth against Postgres/Neon per P3.x.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         String   @default("user") // 'user' | 'admin'
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  drafts             Draft[]
+  clauseFavorites    UserClauseFavorite[]
+  citationFavorites  UserCitationFavorite[]
+}
+
+// ============================================
+// CORE DOCUMENTS
+// ============================================
+
+model Draft {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String?
+  content     String? // HTML string from TipTap
+  metadata    Json? // { jurisdiction, docType, opponent }
+  intakeData  Json? // { clientGoal, keyFacts }
+  status      String? // 'draft' | 'review' | 'final'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  collaborators DocumentCollaborator[]
+  shareLinks    ShareLink[]
+
+  @@index([userId])
+}
+
+model Template {
+  id                String    @id @default(uuid())
+  category          String
+  name              String?
+  skeletonContent   String? // Base HTML with {{placeholder}} syntax
+  defaultMetadata   Json?
+  placeholders      Json? // Array of placeholder definitions
+  sections          Json? // Array of section definitions
+  variables         Json? // Default variable values and types
+  version           Int       @default(1)
+  isPublished       Boolean   @default(false)
+  publishedAt       DateTime?
+  parentTemplateId  String? // Reference to original template for version tracking
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([category])
+}
+
+// ============================================
+// CLAUSE LIBRARY
+// ============================================
+
+model Clause {
+  id             String    @id @default(uuid())
+  title          String
+  content        String // HTML content of the clause
+  description    String?
+
+  category       String
+  subcategory    String?
+  tags           Json? // Array of tags
+
+  jurisdiction   String?
+  documentTypes  Json? // Array of compatible doc types
+
+  usageCount     Int       @default(0)
+  lastUsedAt     DateTime?
+
+  variations     Json? // [{ jurisdiction, content, notes }]
+
+  author         String?
+  isPublished    Boolean   @default(true)
+  isFavorite     Boolean   @default(false)
+  notes          String?
+
+  placeholders   Json?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  favorites      UserClauseFavorite[]
+
+  @@index([category])
+  @@index([jurisdiction, category])
+}
+
+model UserClauseFavorite {
   id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  clauseId  String
+  clause    Clause   @relation(fields: [clauseId], references: [id])
+  notes     String?
   createdAt DateTime @default(now())
+
+  @@unique([userId, clauseId])
+  @@index([userId])
+}
+
+// ============================================
+// CITATION MANAGER
+// ============================================
+
+model Citation {
+  id            String    @id @default(uuid())
+  title         String
+  citation      String
+
+  type          String // 'case' | 'statute' | 'regulation' | 'constitution' | 'secondary' | 'treaty'
+
+  court         String?
+  year          Int?
+  volume        String?
+  reporter      String?
+  page          String?
+  pinpoint      String?
+
+  jurisdiction  String?
+  codeTitle     String?
+  section       String?
+  subdivision   String?
+
+  shortForm     String?
+  parenthetical String?
+  url           String?
+
+  category      String?
+  tags          Json?
+
+  usageCount    Int       @default(0)
+  lastUsedAt    DateTime?
+
+  notes         String?
+  isVerified    Boolean   @default(false)
+  createdBy     String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  favorites     UserCitationFavorite[]
+
+  @@index([type])
+  @@index([jurisdiction])
+  @@index([category])
+}
+
+model UserCitationFavorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  citationId String
+  citation   Citation @relation(fields: [citationId], references: [id])
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, citationId])
+  @@index([userId])
+}
+
+// ============================================
+// AUDIT LOGGING
+// ============================================
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  timestamp    DateTime @default(now())
+  userId       String
+  userEmail    String?
+
+  eventType    String // AUTH_LOGIN, DOCUMENT_CREATE, AI_SUGGESTION_GENERATED, etc.
+  action       String // create, read, update, delete, export, etc.
+
+  resourceType String?
+  resourceId   String?
+
+  metadata     Json?
+
+  ipAddress    String?
+  userAgent    String?
+  sessionId    String?
+
+  previousHash String?
+  hash         String?
+
+  @@index([userId, timestamp])
+  @@index([eventType, timestamp])
+  @@index([resourceId, timestamp])
+}
+
+// ============================================
+// DOCUMENT SHARING & COLLABORATION
+// ============================================
+
+model DocumentCollaborator {
+  id                  String    @id @default(uuid())
+  documentId          String
+  draft               Draft     @relation(fields: [documentId], references: [id])
+  documentOwnerId     String
+
+  collaboratorUserId  String?
+  collaboratorEmail   String
+
+  role                String // 'viewer' | 'editor' | 'admin'
+
+  invitedBy           String
+  invitedByName       String?
+  invitedAt           DateTime  @default(now())
+
+  status              String // 'pending' | 'accepted' | 'declined' | 'revoked'
+  acceptedAt          DateTime?
+
+  inviteToken         String?   @unique
+  inviteExpiresAt     DateTime?
+
+  @@index([documentId])
+  @@index([collaboratorUserId])
+  @@index([collaboratorEmail])
+}
+
+model ShareLink {
+  id               String    @id @default(uuid())
+  documentId       String
+  draft            Draft     @relation(fields: [documentId], references: [id])
+  documentOwnerId  String
+
+  token            String    @unique
+  passcode         String
+
+  accessLevel      String // 'view' | 'comment' | 'edit'
+
+  expiresAt        DateTime
+
+  accessCount      Int       @default(0)
+  lastAccessedAt   DateTime?
+  lastAccessedBy   String?
+
+  isActive         Boolean   @default(true)
+  revokedAt        DateTime?
+  revokedBy        String?
+
+  createdAt        DateTime  @default(now())
+
+  @@index([documentId])
 }
