@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createAuthRouter } from './auth/routes.js';
+import { createDataRouter } from './routes/index.js';
 
 const JSON_BODY_LIMIT = '1mb';
 
@@ -20,6 +21,7 @@ export function createApp({ prisma, authRateLimitMax } = {}) {
 
   if (prisma) {
     app.use('/auth', createAuthRouter({ prisma, rateLimitMax: authRateLimitMax }));
+    app.use(createDataRouter({ prisma }));
   }
 
   app.use((req, res) => {
