@@ -42,7 +42,7 @@ describe('demo-proxy server', () => {
 
   it('rejects a non-allowlisted model with 400', async () => {
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'argument', prompt: 'Draft an argument.', model: 'openai/gpt-4o' });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
@@ -50,28 +50,28 @@ describe('demo-proxy server', () => {
   });
 
   it('rejects missing kind with 400', async () => {
-    const res = await request(app).post('/api/generate').send({ prompt: 'hello' });
+    const res = await request(app).post('/api/generate').set('Origin', 'http://localhost:5173').send({ prompt: 'hello' });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
   });
 
   it('rejects invalid kind enum with 400', async () => {
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'not-a-real-kind', prompt: 'hello' });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
   });
 
   it('rejects missing/empty prompt with 400', async () => {
-    const res = await request(app).post('/api/generate').send({ kind: 'argument', prompt: '' });
+    const res = await request(app).post('/api/generate').set('Origin', 'http://localhost:5173').send({ kind: 'argument', prompt: '' });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
   });
 
   it('rejects prompt over max length with 400', async () => {
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'argument', prompt: 'a'.repeat(8001) });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
@@ -81,7 +81,7 @@ describe('demo-proxy server', () => {
     fetchMock.mockResolvedValueOnce(okUpstreamResponse('Here is your argument.', DEFAULT_MODEL));
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'argument', prompt: 'Draft an argument about breach of contract.' });
 
     expect(res.status).toBe(200);
@@ -101,7 +101,7 @@ describe('demo-proxy server', () => {
     fetchMock.mockResolvedValueOnce(okUpstreamResponse('Suggested clause text.', chosen));
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'suggestion', prompt: 'Suggest a clause.', model: chosen });
 
     expect(res.status).toBe(200);
@@ -116,7 +116,7 @@ describe('demo-proxy server', () => {
     });
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'argument', prompt: 'Draft an argument.' });
 
     expect(res.status).toBe(502);
@@ -136,7 +136,7 @@ describe('demo-proxy server', () => {
 
   it('rejects requests with a wrong Origin header', async () => {
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .set('Origin', 'https://evil.example.com')
       .send({ kind: 'suggestion', prompt: 'Suggest something.' });
 
@@ -155,13 +155,13 @@ describe('demo-proxy server', () => {
     const cap = Number(process.env.DAILY_CAP || 300);
     for (let i = 0; i < cap; i++) {
       await request(app)
-        .post('/api/generate')
+        .post('/api/generate').set('Origin', 'http://localhost:5173')
         .set('Origin', 'http://localhost:5173')
         .send({ kind: 'suggestion', prompt: 'hi' });
     }
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .set('Origin', 'http://localhost:5173')
       .send({ kind: 'suggestion', prompt: 'hi' });
 
@@ -186,7 +186,7 @@ describe('demo-proxy server', () => {
       });
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'suggestion', prompt: 'Suggest something.' });
 
     expect(res.status).toBe(200);
@@ -204,7 +204,7 @@ describe('demo-proxy server', () => {
     });
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'suggestion', prompt: 'Suggest something.' });
 
     expect(res.status).toBe(502);
@@ -224,7 +224,7 @@ describe('demo-proxy server', () => {
     );
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'argument', prompt: 'Draft an argument.' });
 
     expect(res.status).toBe(504);
@@ -236,7 +236,7 @@ describe('demo-proxy server', () => {
     fetchMock.mockRejectedValueOnce(new Error('network exploded'));
 
     const res = await request(app)
-      .post('/api/generate')
+      .post('/api/generate').set('Origin', 'http://localhost:5173')
       .send({ kind: 'argument', prompt: 'Draft an argument.' });
 
     expect(res.status).toBe(502);
@@ -251,7 +251,7 @@ describe('demo-proxy server', () => {
     for (let i = 0; i < 11; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       lastRes = await request(app)
-        .post('/api/generate')
+        .post('/api/generate').set('Origin', 'http://localhost:5173')
         .send({ kind: 'argument', prompt: 'Draft an argument.' });
     }
 
