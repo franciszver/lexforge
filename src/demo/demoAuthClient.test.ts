@@ -17,6 +17,20 @@ vi.mock('aws-amplify/auth', () => ({
     fetchAuthSession: (...args: unknown[]) => realFetchAuthSession(...args),
 }));
 
+const authLogin = vi.fn();
+const authRegister = vi.fn();
+const authMe = vi.fn();
+const authLogout = vi.fn();
+const authGetStoredAuth = vi.fn();
+
+vi.mock('../api/authClient', () => ({
+    login: (...args: unknown[]) => authLogin(...args),
+    register: (...args: unknown[]) => authRegister(...args),
+    me: (...args: unknown[]) => authMe(...args),
+    logout: (...args: unknown[]) => authLogout(...args),
+    getStoredAuth: (...args: unknown[]) => authGetStoredAuth(...args),
+}));
+
 describe('demoAuthClient', () => {
     beforeEach(() => {
         vi.resetModules();
@@ -71,23 +85,133 @@ describe('demoAuthClient', () => {
         });
     });
 
-    describe('demo mode OFF', () => {
+    describe('demo mode OFF (delegates to the server-backed authClient)', () => {
         beforeEach(() => {
             vi.stubEnv('VITE_DEMO_MODE', '');
+            authLogin.mockReset();
+            authRegister.mockReset();
+            authMe.mockReset();
+            authLogout.mockReset();
+            authGetStoredAuth.mockReset();
         });
 
-        it('delegates signIn to the real Amplify auth module', async () => {
-            realSignIn.mockResolvedValue({ isSignedIn: true });
+        it('signIn delegates to authClient.login and reports DONE on success', async () => {
+            authLogin.mockResolvedValue({
+                user: { id: 'u1', email: 'real@example.com', name: null, role: 'user' },
+                accessToken: 'a',
+                refreshToken: 'r',
+            });
             const auth = await import('./demoAuthClient');
-            await auth.signIn({ username: 'real@example.com', password: 'secret' });
-            expect(realSignIn).toHaveBeenCalledWith({ username: 'real@example.com', password: 'secret' });
+
+            const result = await auth.signIn({ username: 'real@example.com', password: 'secret' });
+
+            expect(authLogin).toHaveBeenCalledWith('real@example.com', 'secret');
+            expect(result.isSignedIn).toBe(true);
+            expect(realSignIn).not.toHaveBeenCalled();
         });
 
-        it('delegates getCurrentUser to the real Amplify auth module', async () => {
-            realGetCurrentUser.mockResolvedValue({ userId: 'real-1', username: 'real@example.com' });
+        it('signIn propagates the authClient error on failure', async () => {
+            authLogin.mockRejectedValue(new Error('Invalid credentials'));
             const auth = await import('./demoAuthClient');
-            await auth.getCurrentUser();
-            expect(realGetCurrentUser).toHaveBeenCalled();
+
+            await expect(auth.signIn({ username: 'real@example.com', password: 'wrong' })).rejects.toThrow(
+                'Invalid credentials'
+            );
+        });
+
+        it('signUp delegates to authClient.register and reports auto-signed-in DONE (no email verification in v1)', async () => {
+            authRegister.mockResolvedValue({
+                user: { id: 'u2', email: 'new@example.com', name: null, role: 'user' },
+                accessToken: 'a',
+                refreshToken: 'r',
+            });
+            const auth = await import('./demoAuthClient');
+
+            const result = await auth.signUp({
+                username: 'new@example.com',
+                password: 'secret123',
+                options: { userAttributes: { email: 'new@example.com' } },
+            });
+
+            expect(authRegister).toHaveBeenCalledWith('new@example.com', 'secret123', undefined);
+            expect(result.isSignUpComplete).toBe(true);
+            expect(result.nextStep.signUpStep).toBe('DONE');
+        });
+
+        it('getCurrentUser delegates to authClient.me and maps the shape', async () => {
+            authMe.mockResolvedValue({ id: 'u1', email: 'real@example.com', name: 'Real', role: 'user' });
+            const auth = await import('./demoAuthClient');
+
+            const user = await auth.getCurrentUser();
+
+            expect(authMe).toHaveBeenCalled();
+            expect(user.userId).toBe('u1');
+            expect(user.signInDetails?.loginId).toBe('real@example.com');
+            expect(realGetCurrentUser).not.toHaveBeenCalled();
+        });
+
+        it('getCurrentUser propagates rejection when not authenticated', async () => {
+            authMe.mockRejectedValue(new Error('Not authenticated'));
+            const auth = await import('./demoAuthClient');
+
+            await expect(auth.getCurrentUser()).rejects.toThrow();
+        });
+
+        it("fetchAuthSession resolves cognito:groups from the stored user's role", async () => {
+            authGetStoredAuth.mockReturnValue({
+                accessToken: 'a',
+                refreshToken: 'r',
+                user: { id: 'u1', email: 'admin@example.com', name: null, role: 'admin' },
+            });
+            const auth = await import('./demoAuthClient');
+
+            const session = await auth.fetchAuthSession();
+
+            expect(session.tokens?.accessToken?.payload['cognito:groups']).toEqual(['admin']);
+        });
+
+        it('fetchAuthSession resolves no admin group for a non-admin user', async () => {
+            authGetStoredAuth.mockReturnValue({
+                accessToken: 'a',
+                refreshToken: 'r',
+                user: { id: 'u1', email: 'user@example.com', name: null, role: 'user' },
+            });
+            const auth = await import('./demoAuthClient');
+
+            const session = await auth.fetchAuthSession();
+
+            expect(session.tokens?.accessToken?.payload['cognito:groups']).toEqual([]);
+        });
+
+        it('signOut delegates to authClient.logout', async () => {
+            authLogout.mockResolvedValue(undefined);
+            const auth = await import('./demoAuthClient');
+
+            await auth.signOut();
+
+            expect(authLogout).toHaveBeenCalled();
+            expect(realSignOut).not.toHaveBeenCalled();
+        });
+
+        it('confirmSignUp is a no-op success (no email verification in v1)', async () => {
+            const auth = await import('./demoAuthClient');
+            const result = await auth.confirmSignUp({ username: 'new@example.com', confirmationCode: '000000' });
+            expect(result.isSignUpComplete).toBe(true);
+        });
+
+        it('resendSignUpCode is a no-op success (no email verification in v1)', async () => {
+            const auth = await import('./demoAuthClient');
+            const result = await auth.resendSignUpCode({ username: 'new@example.com' });
+            expect(result.destination).toBe('new@example.com');
+        });
+
+        it('resetPassword and confirmResetPassword are no-op successes (no email verification in v1)', async () => {
+            const auth = await import('./demoAuthClient');
+            const resetResult = await auth.resetPassword({ username: 'new@example.com' });
+            expect(resetResult.nextStep).toBeDefined();
+            await expect(
+                auth.confirmResetPassword({ username: 'new@example.com', confirmationCode: '000000', newPassword: 'x' })
+            ).resolves.toBeUndefined();
         });
     });
 });
