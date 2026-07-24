@@ -23,6 +23,7 @@ describe('demo-proxy server', () => {
   beforeEach(() => {
     process.env.OPENROUTER_API_KEY = FAKE_KEY;
     process.env.ALLOWED_ORIGIN = 'http://localhost:5173';
+    process.env.DAILY_CAP = '5';
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     app = createApp();
@@ -121,6 +122,51 @@ describe('demo-proxy server', () => {
     expect(res.status).toBe(502);
     expect(res.body).toHaveProperty('error');
     expect(JSON.stringify(res.body)).not.toContain(FAKE_KEY);
+  });
+
+  it('rejects requests without an Origin header (non-browser bots)', async () => {
+    const res = await request(app)
+      .post('/api/generate')
+      .send({ kind: 'suggestion', prompt: 'Suggest something.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toHaveProperty('error');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects requests with a wrong Origin header', async () => {
+    const res = await request(app)
+      .post('/api/generate')
+      .set('Origin', 'https://evil.example.com')
+      .send({ kind: 'suggestion', prompt: 'Suggest something.' });
+
+    expect(res.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 once the global daily cap is exhausted', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    });
+
+    // DAILY_CAP is lowered via env in test setup; exhaust it.
+    const cap = Number(process.env.DAILY_CAP || 300);
+    for (let i = 0; i < cap; i++) {
+      await request(app)
+        .post('/api/generate')
+        .set('Origin', 'http://localhost:5173')
+        .send({ kind: 'suggestion', prompt: 'hi' });
+    }
+
+    const res = await request(app)
+      .post('/api/generate')
+      .set('Origin', 'http://localhost:5173')
+      .send({ kind: 'suggestion', prompt: 'hi' });
+
+    expect(res.status).toBe(429);
+    expect(res.body).toHaveProperty('error');
   });
 
   it('fails over to the next allowlisted model when the first is rate-limited upstream', async () => {
