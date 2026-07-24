@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -176,6 +176,41 @@ describe('App Routing', () => {
         await waitFor(() => {
             expect(screen.getByText('Citations')).toBeInTheDocument();
         });
+    });
+
+    it('closes the citation browser via the close button without inserting a citation', async () => {
+        const store = configureStore({
+            reducer: {
+                document: documentReducer,
+                suggestions: suggestionsReducer,
+                ui: uiReducer,
+                auth: authReducer,
+                intake: intakeReducer,
+            } as any,
+            preloadedState: {
+                ...createTestStore(true).getState(),
+                ui: {
+                    ...createTestStore(true).getState().ui,
+                    showCitationBrowser: true,
+                },
+            },
+        });
+
+        render(
+            <Provider store={store}>
+                <App />
+            </Provider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Citations')).toBeInTheDocument();
+        });
+
+        const closeBtn = screen.getByRole('button', { name: /close citation browser/i });
+        fireEvent.click(closeBtn);
+
+        expect(store.getState().ui.showCitationBrowser).toBe(false);
+        expect(screen.queryByText('Citations')).not.toBeInTheDocument();
     });
 
     it('renders Login page on /login', async () => {

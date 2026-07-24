@@ -3,7 +3,7 @@
 **AI-powered demand-letter drafting for law firms** — draft, collaborate on, and format legal demand letters with AI-assisted argument building, a reusable clause library, and court-rules-aware formatting.
 
 [![CI](https://github.com/franciszver/lexforge/actions/workflows/ci.yml/badge.svg)](https://github.com/franciszver/lexforge/actions/workflows/ci.yml)
-**780 tests** · React 19 · TypeScript · Node/Express · Render
+**781 tests** · React 19 · TypeScript · Node/Express · Render
 
 > **Live demo:** [lexforge-demo.onrender.com](https://lexforge-demo.onrender.com) — demo mode: sign in with any email/password. Documents and clauses are bundled fixture data; AI suggestions are live (OpenRouter free-tier models via the API's rate-limited endpoint — the first call after idle may take ~30–60s while the free-tier server wakes).
 
@@ -26,7 +26,7 @@
 | Database | PostgreSQL via Prisma ORM, hosted on Neon |
 | AI | OpenRouter, called from the server's AI generate endpoint |
 | Hosting | Render — static site (frontend) + web service (API) |
-| Testing | Vitest + Testing Library (frontend), Vitest + Supertest (server) — 780 tests across 57 files |
+| Testing | Vitest + Testing Library (frontend), Vitest + Supertest (server) — 781 tests across 57 files |
 
 ## Architecture
 
@@ -80,7 +80,7 @@ VITE_API_URL=http://localhost:3001 npm run dev
 Details in [docs/SETUP.md](docs/SETUP.md).
 
 ```bash
-npx vitest run          # frontend: 540 tests
+npx vitest run          # frontend: 541 tests
 cd server && npm test   # server: 240 tests
 npm run build            # production build
 ```
