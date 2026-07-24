@@ -16,7 +16,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: cp amplify_outputs.example.json amplify_outputs.json
       - run: npx vitest run
       - run: npm run build
 
