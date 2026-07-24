@@ -41,7 +41,7 @@ No AWS infrastructure. All cloud resources live on Render's free tier.
 - Open or create a document
 - Click **Generate Suggestions** to test the AI integration
   - First AI call after proxy idle shows a "warming up" notice for up to 60 seconds
-  - Then live output streams in
+  - Then the live AI output appears (single response, not streamed)
   - If the proxy is unreachable, a `[DEMO MODE]` fallback message displays (still proves the site works)
 
 ## Costs
