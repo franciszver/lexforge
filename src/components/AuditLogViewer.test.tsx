@@ -58,7 +58,7 @@ const mockAuditLogs: AuditLogEntry[] = [
     },
 ];
 
-// Mock Amplify - return our mock data
+// Mock the data client - return our mock data
 const mockAuditLogList = vi.fn();
 
 vi.mock('../api/apiDataClient', () => ({

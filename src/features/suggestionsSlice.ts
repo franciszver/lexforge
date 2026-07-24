@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/tool
 import { getDataClient } from '../demo/dataClient';
 import { auditAI } from '../utils/audit';
 
-// Lazy client initialization to avoid "Amplify not configured" errors
+// Lazy client initialization
 let _client: ReturnType<typeof getDataClient> | null = null;
 function getClient() {
   if (!_client) {
@@ -13,7 +13,7 @@ function getClient() {
 
 /**
  * Enhanced suggestions slice with signal controls, pin/archive, and filtering.
- * Now integrated with real OpenAI-powered Lambda function via Amplify.
+ * Integrated with the server's AI-powered suggestions endpoint.
  */
 
 export type FeedbackType = 'up' | 'down' | null;
@@ -107,7 +107,7 @@ export const submitFeedback = createAsyncThunk(
     }
 );
 
-// Real suggestion generation via Amplify Lambda
+// Real suggestion generation via the server's AI endpoint
 export const generateSuggestions = createAsyncThunk(
     'suggestions/generate',
     async (
@@ -118,7 +118,7 @@ export const generateSuggestions = createAsyncThunk(
             const state = getState() as { suggestions: SuggestionsState };
             const { signals, approverPov, suggestionCount } = state.suggestions;
 
-            // Call the Lambda function via Amplify GraphQL
+            // Call the server's AI suggestions query
             const response = await getClient().queries.askAI({
                 text: content,
                 context: {

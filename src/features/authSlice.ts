@@ -3,7 +3,7 @@ import { getCurrentUser, fetchAuthSession } from '../demo/demoAuthClient';
 
 /**
  * Auth state slice for managing authentication status.
- * Integrates with AWS Cognito via Amplify.
+ * Integrates with the server's JWT auth (see src/demo/demoAuthClient.ts).
  */
 
 interface AuthState {

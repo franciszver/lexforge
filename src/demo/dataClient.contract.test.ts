@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
  * Contract test: the demo data client must expose every member the app
- * actually calls on the real Amplify Data client.
+ * actually calls on the real (server-backed) data client.
  *
  * Inventory derived by grepping src/ for every access pattern:
  *   \.queries\.\w+   \.mutations\.\w+   \.models\.\w+\.\w+
@@ -12,11 +12,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  *    AnalyticsEvent, Comment, DocumentVersion, YjsDocumentState. No UI path
  *    reaches them for any user, demo or real.
  *  - TemplateVersion + Template's `listTemplateVersionByTemplateIdAndVersion`
- *    GSI: only referenced from src/utils/templateVersioning.ts, which has
- *    zero callers anywhere in the app (verified: none of its exported
- *    functions are imported by any other file). Template's plain CRUD
- *    (list/create/update/delete) IS covered below because Admin.tsx calls
- *    it directly and the admin route is reachable by the demo user.
+ *    GSI: only referenced from the former src/utils/templateVersioning.ts,
+ *    which had zero callers anywhere in the app and was removed (P3.7).
+ *    Template's plain CRUD (list/create/update/delete) IS covered below
+ *    because Admin.tsx calls it directly and the admin route is reachable
+ *    by the demo user.
  */
 const MODEL_METHODS: Record<string, string[]> = {
     Clause: ['list', 'get', 'create', 'update', 'delete'],

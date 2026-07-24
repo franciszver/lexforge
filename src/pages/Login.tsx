@@ -12,7 +12,7 @@ type AuthMode = 'signin' | 'signup' | 'verify' | 'forgot' | 'reset';
 /**
  * Login Page
  * 
- * Handles user authentication via AWS Cognito.
+ * Handles user authentication via the server's JWT auth.
  * Includes sign-in, sign-up, email verification, and password reset flows.
  */
 export const Login: React.FC = () => {

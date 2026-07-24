@@ -11,7 +11,7 @@ import { useContentSync } from './useContentSync';
  * every render. Any state update from inside the effect (setServerVersion /
  * setLocalVersion / setServerState) re-renders the consumer, which recreates
  * `onConflict`, which re-triggers the effect — forever. With a real,
- * network-latency-bound Amplify client the loop still exists but each
+ * network-latency-bound server client the loop still exists but each
  * iteration is slow enough to go unnoticed; with instantly-resolving demo
  * data it spins as fast as the microtask queue allows and pegs the main
  * thread.

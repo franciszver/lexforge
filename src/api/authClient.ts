@@ -2,9 +2,9 @@
  * Auth API Client
  *
  * Talks to the LexForge Express/Prisma server's /auth/* routes (see
- * server/src/auth/routes.js). Replaces the previous Cognito/Amplify auth
- * flow. Tokens are cached in memory for the life of the page and mirrored to
- * localStorage (key 'lexforge.auth') so a reload doesn't force a re-login.
+ * server/src/auth/routes.js). Tokens are cached in memory for the life of
+ * the page and mirrored to localStorage (key 'lexforge.auth') so a reload
+ * doesn't force a re-login.
  *
  * `me()` and `logout()` are authenticated requests: on a 401 (expired access
  * token) they transparently call `refresh()` once and retry the original

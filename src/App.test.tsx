@@ -34,38 +34,6 @@ vi.mock('./utils/audit', () => ({
     dispatchAuditEvent: vi.fn(),
 }));
 
-// Mock Amplify
-vi.mock('aws-amplify/data', () => ({
-    generateClient: () => ({
-        models: {
-            Draft: {
-                get: vi.fn().mockResolvedValue({ data: null, errors: null }),
-                list: vi.fn().mockResolvedValue({ data: [], errors: null }),
-                create: vi.fn().mockResolvedValue({ data: null, errors: null }),
-            },
-            Template: {
-                list: vi.fn().mockResolvedValue({ data: [], errors: null }),
-            },
-        },
-    }),
-}));
-
-// Track auth state for mocking
-let mockIsAuthenticated = true;
-
-vi.mock('aws-amplify/auth', () => ({
-    getCurrentUser: vi.fn(() => {
-        if (mockIsAuthenticated) {
-            return Promise.resolve({ userId: 'user-123', username: 'test@example.com' });
-        }
-        return Promise.reject(new Error('Not authenticated'));
-    }),
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-    fetchAuthSession: vi.fn().mockResolvedValue({ tokens: { accessToken: { payload: {} } } }),
-}));
-
 // Mock TipTap
 vi.mock('@tiptap/react', () => ({
     useEditor: () => ({
@@ -150,7 +118,6 @@ const createTestStore = (isAuthenticated = true) => configureStore({
 describe('App Routing', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockIsAuthenticated = true;
     });
 
     it('renders Dashboard for authenticated users at root', async () => {
@@ -168,7 +135,6 @@ describe('App Routing', () => {
     });
 
     it('redirects to login for unauthenticated users', async () => {
-        mockIsAuthenticated = false;
         const store = createTestStore(false);
 
         render(

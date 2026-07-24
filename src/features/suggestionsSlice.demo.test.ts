@@ -7,10 +7,10 @@ import { configureStore } from '@reduxjs/toolkit';
  * Repro: Suggestions panel -> "Generate Suggestions" -> console:
  *   TypeError: getClient$5(...).queries.askAI is not a function (2 args)
  *
- * Root cause: suggestionsSlice.ts built its own Amplify client via
- * `generateClient<Schema>()` directly instead of going through the demo
- * data-client seam, so it never picked up the demo mock at all — it hit
- * a real (non-functional, in the demo build) Amplify client.
+ * Root cause: suggestionsSlice.ts built its own data client directly
+ * instead of going through the demo data-client seam, so it never picked
+ * up the demo mock at all — it hit a real (non-functional, in the demo
+ * build) client.
  */
 describe('generateSuggestions thunk in demo mode', () => {
     afterEach(() => {

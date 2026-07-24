@@ -156,7 +156,7 @@ export const logAuditEvent = createAsyncThunk(
             const timestamp = new Date().toISOString();
             
             // Get user ID from current session (will be set by owner auth)
-            // For now, use a placeholder - Amplify will set the actual owner
+            // For now, use a placeholder - the server sets the actual owner
             const userId = 'current-user'; // Owner auth handles this
             
             // Get previous hash for chain integrity

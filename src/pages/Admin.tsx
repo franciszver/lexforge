@@ -10,7 +10,7 @@ import { AuditReportGenerator } from '../components/AuditReportGenerator';
 import { ArgumentBuilder } from '../components/ArgumentBuilder';
 import { DocumentFormatter } from '../components/DocumentFormatter';
 
-// Lazy client initialization to avoid "Amplify not configured" errors
+// Lazy client initialization
 let _client: ReturnType<typeof getDataClient> | null = null;
 function getClient() {
     if (!_client) {
@@ -607,11 +607,11 @@ export const Admin = () => {
                                     <h2 className="text-lg font-semibold text-slate-900">Users</h2>
                                 </div>
                                 <p className="text-sm text-slate-500 mb-4">
-                                    User management is handled through AWS Cognito.
+                                    User management is handled through the server's auth system.
                                 </p>
                                 <div className="bg-slate-50 rounded-lg p-4">
                                     <p className="text-xs text-slate-500">
-                                        Access the AWS Cognito Console to manage users, groups, and permissions.
+                                        Manage users, roles, and permissions directly in the database.
                                     </p>
                                 </div>
                             </div>
