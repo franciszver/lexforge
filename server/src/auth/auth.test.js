@@ -180,4 +180,77 @@ describe('auth API', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('rate limiting on /register, /login, /refresh (shared budget, not /me or /logout)', () => {
+    it('429s once the per-IP budget is exhausted, with a JSON body and standard headers', async () => {
+      // authRateLimitMax keeps this cheap: 3 requests is enough to prove the
+      // limiter works without looping 21 times against the default budget.
+      const limitedApp = createApp({ prisma, authRateLimitMax: 3 });
+
+      let lastRes;
+      for (let i = 0; i < 4; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        lastRes = await request(limitedApp).post('/auth/register').send({}); // malformed body: cheap 400s still consume budget
+      }
+
+      expect(lastRes.status).toBe(429);
+      expect(lastRes.body).toHaveProperty('error');
+      expect(lastRes.headers).toHaveProperty('ratelimit-limit');
+    });
+
+    it('shares the budget across register/login/refresh', async () => {
+      const limitedApp = createApp({ prisma, authRateLimitMax: 3 });
+
+      await request(limitedApp).post('/auth/register').send({});
+      await request(limitedApp).post('/auth/login').send({});
+      await request(limitedApp).post('/auth/refresh').send({});
+      const fourth = await request(limitedApp).post('/auth/register').send({});
+
+      expect(fourth.status).toBe(429);
+    });
+
+    it('does not rate limit /auth/me or /auth/logout', async () => {
+      const limitedApp = createApp({ prisma, authRateLimitMax: 2 });
+
+      for (let i = 0; i < 5; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await request(limitedApp).get('/auth/me');
+      }
+      const res = await request(limitedApp).get('/auth/me');
+
+      expect(res.status).not.toBe(429);
+    });
+  });
+
+  describe('email normalization', () => {
+    it('normalizes case so login matches a differently-cased register', async () => {
+      await request(app).post('/auth/register').send({ email: 'Demo@Example.com', password: 'password123' });
+
+      const res = await request(app).post('/auth/login').send({ email: 'demo@example.com', password: 'password123' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.email).toBe('demo@example.com');
+    });
+
+    it('rejects a second register with only different casing as a duplicate (409)', async () => {
+      await request(app).post('/auth/register').send({ email: 'Demo2@Example.com', password: 'password123' });
+
+      const res = await request(app).post('/auth/register').send({ email: 'demo2@example.com', password: 'password123' });
+
+      expect(res.status).toBe(409);
+    });
+  });
+
+  describe('concurrent duplicate register (race)', () => {
+    it('returns 201 once and 409 once, never a 500, for two concurrent registers with the same email', async () => {
+      const email = 'race@example.com';
+      const [resA, resB] = await Promise.all([
+        request(app).post('/auth/register').send({ email, password: 'password123' }),
+        request(app).post('/auth/register').send({ email, password: 'password123' }),
+      ]);
+
+      const statuses = [resA.status, resB.status].sort();
+      expect(statuses).toEqual([201, 409]);
+    });
+  });
 });
