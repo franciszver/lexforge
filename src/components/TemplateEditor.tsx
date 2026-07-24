@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {
@@ -822,9 +823,9 @@ export function TemplateEditor({
                             )}
 
                             {/* Preview Content */}
-                            <div 
+                            <div
                                 className="prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: previewContent }}
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewContent) }}
                             />
 
                             {/* Placeholder Styling */}

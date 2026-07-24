@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import {
     Search,
     Filter,
@@ -239,7 +240,7 @@ function ClausePreview({ clause, onInsert, onClose }: ClausePreviewProps) {
             <div className="flex-1 overflow-y-auto p-4">
                 <div
                     className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: displayContent }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(displayContent) }}
                 />
             </div>
 

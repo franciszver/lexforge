@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import {
     Bookmark,
     Search,
@@ -138,9 +139,9 @@ function ClauseCard({ clause, relevance, onInsert, onInsertAsSupport }: ClauseCa
                         <p className="text-sm text-slate-600 mb-3">{clause.description}</p>
                     )}
                     
-                    <div 
+                    <div
                         className="text-sm text-slate-700 bg-white p-3 rounded border border-slate-200 mb-3 max-h-40 overflow-y-auto"
-                        dangerouslySetInnerHTML={{ __html: clause.content }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(clause.content) }}
                     />
                     
                     <div className="flex items-center gap-2">
