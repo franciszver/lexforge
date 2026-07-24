@@ -150,7 +150,8 @@ describe('demo-proxy server', () => {
   });
 
   it('includes the upstream HTTP status (code only) in the 502 body for diagnosability', async () => {
-    fetchMock.mockResolvedValueOnce({
+    // Every allowlisted candidate rejects (failover exhausts the list).
+    fetchMock.mockResolvedValue({
       ok: false,
       status: 404,
       json: async () => ({ error: 'No endpoints found matching your data policy' }),
