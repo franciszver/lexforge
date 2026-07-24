@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import intakeReducer, { updateField, addFact, removeFact, resetIntake } from './intakeSlice';
 import documentReducer, { updateContent, markClean, clearDocument } from './documentSlice';
 import suggestionsReducer, { setSignals, togglePin, clearSuggestions } from './suggestionsSlice';
-import uiReducer, { toggleRightPanel, setRightPanelTab, setPendingInsertion, clearPendingInsertion } from './uiSlice';
+import uiReducer, { toggleRightPanel, setRightPanelTab, setPendingInsertion, clearPendingInsertion, setShowCitationBrowser } from './uiSlice';
 
 // Mock audit utilities to prevent side effects during tests
 vi.mock('../utils/audit', () => ({
@@ -216,5 +216,15 @@ describe('UI Reducer', () => {
 
         state = uiReducer(state, clearPendingInsertion());
         expect(state.pendingInsertion).toBeNull();
+    });
+
+    it('should default showCitationBrowser to false', () => {
+        const initialState = uiReducer(undefined, { type: 'unknown' });
+        expect(initialState.showCitationBrowser).toBe(false);
+    });
+
+    it('should set showCitationBrowser', () => {
+        const state = uiReducer(undefined, setShowCitationBrowser(true));
+        expect(state.showCitationBrowser).toBe(true);
     });
 });

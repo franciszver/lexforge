@@ -113,6 +113,7 @@ const createTestStore = () => configureStore({
             showShareModal: false,
             showInviteModal: false,
             showClauseBrowser: false,
+            showCitationBrowser: false,
             showDeleteConfirm: null,
             pendingInsertion: null,
         },
