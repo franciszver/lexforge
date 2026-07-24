@@ -157,13 +157,15 @@ export async function acceptInvitation(
         throw new Error(`This invitation has already been ${invitation.status}`);
     }
     
-    // Update the invitation
+    // Update the invitation. inviteToken is passed through (not nulled) so
+    // apiDataClient can authorize the accept by token rather than by
+    // database id (the server clears it server-side once accepted).
     const updated = await client.models.DocumentCollaborator.update({
         id: invitation.id,
+        inviteToken,
         collaboratorUserId: userId,
         status: 'accepted',
         acceptedAt: new Date().toISOString(),
-        inviteToken: null, // Clear token after use
     });
     
     if (!updated.data) {

@@ -1,15 +1,15 @@
 /**
  * Demo Data Client
  *
- * `getDataClient()` is a drop-in replacement for `generateClient<Schema>()`.
- * When demo mode is off it just returns the real Amplify Data client. When
- * demo mode is on it returns an in-memory mock that implements the same
+ * `getDataClient()` returns the data client to use across the app. When
+ * demo mode is on it's an in-memory mock that implements the
  * `.models.<Model>.list/get/create/update/delete` (+ `onCreate/onUpdate/onDelete`
  * no-op subscriptions) shape used across the app's services, seeded from
  * bundled fixtures. Mutations persist for the lifetime of the page load only.
+ * When demo mode is off it's `apiDataClient`, the same method surface backed
+ * by REST calls to the LexForge Express/Prisma server.
  */
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import { createApiDataClient } from '../api/apiDataClient';
 import { v4 as uuidv4 } from 'uuid';
 import { isDemoMode } from './demoConfig';
 import {
@@ -186,19 +186,19 @@ function getDemoClient() {
     return demoClientInstance;
 }
 
-let realClient: ReturnType<typeof generateClient<Schema>> | null = null;
+let apiClient: ReturnType<typeof createApiDataClient> | null = null;
 
 /**
- * Returns the Amplify Data client to use. In demo mode this is an in-memory
- * fixture-backed mock and `generateClient` (and therefore AWS) is never
- * called. Otherwise it's the real Amplify Data client.
+ * Returns the data client to use. In demo mode this is an in-memory
+ * fixture-backed mock and no network calls are made. Otherwise it's
+ * apiDataClient, talking to the real server over REST.
  */
-export function getDataClient(): ReturnType<typeof generateClient<Schema>> {
+export function getDataClient(): ReturnType<typeof createApiDataClient> {
     if (isDemoMode) {
-        return getDemoClient() as unknown as ReturnType<typeof generateClient<Schema>>;
+        return getDemoClient() as unknown as ReturnType<typeof createApiDataClient>;
     }
-    if (!realClient) {
-        realClient = generateClient<Schema>();
+    if (!apiClient) {
+        apiClient = createApiDataClient();
     }
-    return realClient;
+    return apiClient;
 }
