@@ -67,6 +67,24 @@ describe('citationRepository', () => {
     expect(await getCitation(prisma, created.id)).toBeNull();
   });
 
+  it('does not allow isVerified to be set via update (trust flag mass assignment)', async () => {
+    const created = await createCitation(prisma, { title: 'X', citation: 'x', type: 'case' });
+    expect(created.isVerified).toBe(false);
+
+    const updated = await updateCitation(prisma, created.id, { isVerified: true });
+    expect(updated.isVerified).toBe(false);
+  });
+
+  it('does not allow isVerified to be set via create (trust flag mass assignment)', async () => {
+    const created = await createCitation(prisma, {
+      title: 'X',
+      citation: 'x',
+      type: 'case',
+      isVerified: true,
+    });
+    expect(created.isVerified).toBe(false);
+  });
+
   it('searches citations by type', async () => {
     await seedCitations(prisma);
 
@@ -106,8 +124,18 @@ describe('citationRepository', () => {
       const list = await listCitationFavoritesByUser(prisma, 'user-1');
       expect(list).toHaveLength(1);
 
-      await removeCitationFavorite(prisma, favorite.id);
+      await removeCitationFavorite(prisma, favorite.id, 'user-1');
       expect(await listCitationFavoritesByUser(prisma, 'user-1')).toHaveLength(0);
+    });
+
+    it('does not remove a favorite owned by a different user (IDOR)', async () => {
+      const citation = await createCitation(prisma, { title: 'X', citation: 'x', type: 'case' });
+      const favorite = await addCitationFavorite(prisma, 'user-1', citation.id);
+
+      const removed = await removeCitationFavorite(prisma, favorite.id, 'user-2');
+
+      expect(removed).toBe(false);
+      expect(await listCitationFavoritesByUser(prisma, 'user-1')).toHaveLength(1);
     });
 
     it('joins favorites with their citation records', async () => {

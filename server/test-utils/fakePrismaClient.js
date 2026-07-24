@@ -5,9 +5,9 @@
 // types to be meaningful here).
 //
 // Supports the subset of Prisma's query API the repositories rely on:
-// create / findUnique / findFirst / findMany / update / delete / count,
-// with `where` clauses of plain equality plus `{ not }` and `{ in }`
-// operators, and `orderBy` / `take` on findMany.
+// create / findUnique / findFirst / findMany / update / delete / count /
+// deleteMany, with `where` clauses of plain equality plus `{ not }` and
+// `{ in }` operators, and `orderBy` / `take` on findMany.
 
 import { randomUUID } from 'node:crypto';
 
@@ -111,6 +111,12 @@ function createFakeModel({ uniqueFields = [] } = {}) {
 
     async count({ where } = {}) {
       return [...rows.values()].filter((r) => matchesWhere(r, where)).length;
+    },
+
+    async deleteMany({ where } = {}) {
+      const matches = [...rows.values()].filter((r) => matchesWhere(r, where));
+      for (const record of matches) rows.delete(record.id);
+      return { count: matches.length };
     },
   };
 }

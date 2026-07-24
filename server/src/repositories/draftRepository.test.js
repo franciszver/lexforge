@@ -47,6 +47,13 @@ describe('draftRepository', () => {
     expect(updated.title).toBe('New');
   });
 
+  it('does not allow userId to be reassigned via update (mass assignment)', async () => {
+    const created = await createDraft(prisma, { userId: 'user-1', title: 'Old' });
+    const updated = await updateDraft(prisma, created.id, { userId: 'user-2', title: 'New' });
+    expect(updated.userId).toBe('user-1');
+    expect(updated.title).toBe('New');
+  });
+
   it('deletes a draft', async () => {
     const created = await createDraft(prisma, { userId: 'user-1', title: 'Gone' });
     await deleteDraft(prisma, created.id);

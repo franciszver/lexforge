@@ -35,8 +35,10 @@ async function seedClauses(prisma) {
     content: '<p>...</p>',
     category: 'Confidentiality',
     jurisdiction: 'California',
-    isPublished: false,
   });
+  // isPublished is not a client-writable field (see trust-flag test below),
+  // so flip it directly on the fake store to seed an unpublished fixture.
+  await prisma.clause.update({ where: { id: unpublished.id }, data: { isPublished: false } });
   return { indemnification, confidentiality, unpublished };
 }
 
@@ -69,6 +71,25 @@ describe('clauseRepository', () => {
 
     await deleteClause(prisma, created.id);
     expect(await getClause(prisma, created.id)).toBeNull();
+  });
+
+  it('does not allow isPublished to be set via update (trust flag mass assignment)', async () => {
+    const created = await createClause(prisma, { title: 'X', content: 'c', category: 'Notices' });
+    expect(created.isPublished).toBe(true);
+    await prisma.clause.update({ where: { id: created.id }, data: { isPublished: false } });
+
+    const updated = await updateClause(prisma, created.id, { isPublished: true });
+    expect(updated.isPublished).toBe(false);
+  });
+
+  it('does not allow isPublished to be set via create (trust flag mass assignment)', async () => {
+    const created = await createClause(prisma, {
+      title: 'X',
+      content: 'c',
+      category: 'Notices',
+      isPublished: false,
+    });
+    expect(created.isPublished).toBe(true);
   });
 
   it('searches published clauses by category', async () => {
@@ -138,9 +159,19 @@ describe('clauseRepository', () => {
       const clause = await createClause(prisma, { title: 'X', content: 'c', category: 'Notices' });
       const favorite = await addClauseFavorite(prisma, 'user-1', clause.id);
 
-      await removeClauseFavorite(prisma, favorite.id);
+      await removeClauseFavorite(prisma, favorite.id, 'user-1');
 
       expect(await findClauseFavorite(prisma, 'user-1', clause.id)).toBeNull();
+    });
+
+    it('does not remove a favorite owned by a different user (IDOR)', async () => {
+      const clause = await createClause(prisma, { title: 'X', content: 'c', category: 'Notices' });
+      const favorite = await addClauseFavorite(prisma, 'user-1', clause.id);
+
+      const removed = await removeClauseFavorite(prisma, favorite.id, 'user-2');
+
+      expect(removed).toBe(false);
+      expect(await findClauseFavorite(prisma, 'user-1', clause.id)).not.toBeNull();
     });
 
     it('lists favorite ids for a user', async () => {

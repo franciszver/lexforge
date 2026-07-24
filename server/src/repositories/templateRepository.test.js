@@ -30,12 +30,28 @@ describe('templateRepository', () => {
 
     expect((await getTemplate(prisma, created.id)).name).toBe('X');
 
-    const updated = await updateTemplate(prisma, created.id, { name: 'Y', isPublished: true });
+    const updated = await updateTemplate(prisma, created.id, { name: 'Y' });
     expect(updated.name).toBe('Y');
-    expect(updated.isPublished).toBe(true);
 
     await deleteTemplate(prisma, created.id);
     expect(await getTemplate(prisma, created.id)).toBeNull();
+  });
+
+  it('does not allow isPublished to be set via update (trust flag mass assignment)', async () => {
+    const created = await createTemplate(prisma, { category: 'Demand Letter', name: 'X' });
+    expect(created.isPublished).toBe(false);
+
+    const updated = await updateTemplate(prisma, created.id, { isPublished: true });
+    expect(updated.isPublished).toBe(false);
+  });
+
+  it('does not allow isPublished to be set via create (trust flag mass assignment)', async () => {
+    const created = await createTemplate(prisma, {
+      category: 'Demand Letter',
+      name: 'X',
+      isPublished: true,
+    });
+    expect(created.isPublished).toBe(false);
   });
 
   it('lists all templates when no category given', async () => {
