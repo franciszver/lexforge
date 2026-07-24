@@ -26,6 +26,10 @@ export async function findCollaboratorByToken(prisma, inviteToken) {
   return prisma.documentCollaborator.findFirst({ where: { inviteToken } });
 }
 
+export async function getCollaboratorById(prisma, id) {
+  return prisma.documentCollaborator.findUnique({ where: { id } });
+}
+
 export async function acceptCollaboratorInvite(prisma, id, userId) {
   return prisma.documentCollaborator.update({
     where: { id },

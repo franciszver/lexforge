@@ -138,7 +138,7 @@ export async function refresh(): Promise<AuthTokens> {
 }
 
 /** Authenticated request with a single automatic refresh-and-retry on 401. */
-async function authenticatedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function authenticatedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
     const auth = getAuth();
     if (!auth?.accessToken) {
         throw new AuthApiError('Not authenticated', 401);

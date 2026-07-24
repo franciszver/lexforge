@@ -15,6 +15,10 @@ export async function findShareLinkByToken(prisma, token) {
   return prisma.shareLink.findFirst({ where: { token } });
 }
 
+export async function getShareLinkById(prisma, id) {
+  return prisma.shareLink.findUnique({ where: { id } });
+}
+
 export async function listShareLinksByDocument(prisma, documentId) {
   return prisma.shareLink.findMany({ where: { documentId, isActive: true } });
 }

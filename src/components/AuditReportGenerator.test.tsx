@@ -79,8 +79,8 @@ const mockAuditLogs: AuditLogEntry[] = [
 // Mock Amplify
 const mockAuditLogList = vi.fn();
 
-vi.mock('aws-amplify/data', () => ({
-    generateClient: vi.fn(() => ({
+vi.mock('../api/apiDataClient', () => ({
+    createApiDataClient: vi.fn(() => ({
         models: {
             AuditLog: {
                 list: mockAuditLogList,

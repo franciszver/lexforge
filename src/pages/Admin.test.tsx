@@ -104,8 +104,8 @@ const mockAuditLogListByUserId = vi.fn();
 const mockAuditLogListByEventType = vi.fn();
 const mockAuditLogListByResourceId = vi.fn();
 
-vi.mock('aws-amplify/data', () => ({
-    generateClient: () => ({
+vi.mock('../api/apiDataClient', () => ({
+    createApiDataClient: () => ({
         models: {
             Template: {
                 list: mockTemplateList,
