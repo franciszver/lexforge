@@ -62,6 +62,38 @@ export function createApp() {
     res.status(200).json({ ok: true });
   });
 
+  // CORS only restrains browsers; non-browser bots hit the endpoint directly.
+  // Require the exact demo-site Origin header server-side. Trivially spoofable
+  // by a targeted attacker, but stops drive-by scanners cold.
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+  const requireOrigin = (req, res, next) => {
+    if (req.get('origin') !== allowedOrigin) {
+      res.status(403).json({ error: 'Forbidden.' });
+      return;
+    }
+    next();
+  };
+
+  // Global daily cap so a distributed bot can't drain the free-tier AI quota;
+  // the frontend falls back to canned demo responses beyond it. In-memory is
+  // fine: a restart resetting the counter only ever errs toward availability.
+  const dailyCap = Number(process.env.DAILY_CAP) || 300;
+  let capDay = new Date().toISOString().slice(0, 10);
+  let capCount = 0;
+  const dailyCapGuard = (req, res, next) => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (today !== capDay) {
+      capDay = today;
+      capCount = 0;
+    }
+    if (capCount >= dailyCap) {
+      res.status(429).json({ error: 'Daily demo AI limit reached, please try again tomorrow.' });
+      return;
+    }
+    capCount += 1;
+    next();
+  };
+
   const generateLimiter = rateLimit({
     windowMs: RATE_LIMIT_WINDOW_MS,
     max: RATE_LIMIT_MAX,
@@ -72,7 +104,7 @@ export function createApp() {
     },
   });
 
-  app.post('/api/generate', generateLimiter, async (req, res) => {
+  app.post('/api/generate', requireOrigin, generateLimiter, dailyCapGuard, async (req, res) => {
     const validationError = validateGenerateBody(req.body);
     if (validationError) {
       res.status(400).json({ error: validationError });
