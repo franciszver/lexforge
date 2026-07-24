@@ -7,6 +7,10 @@
 
 > **Live demo:** [lexforge-demo.onrender.com](https://lexforge-demo.onrender.com) — demo mode: sign in with any email/password. Documents and clauses are bundled fixture data; AI suggestions are live (OpenRouter free-tier models via the API's rate-limited endpoint — the first call after idle may take ~30–60s while the free-tier server wakes).
 
+![LexForge demo](docs/assets/demo.gif)
+
+*Walkthrough: sign in, browse drafts, edit in the legal editor, insert from the clause library, add Bluebook-formatted citations, apply AI suggestions, and review the audit trail.*
+
 ## Features
 
 - **AI argument builder** — generate structured legal arguments (introduction, numbered arguments, conclusion) from case facts, with AI suggestions to strengthen weak points
