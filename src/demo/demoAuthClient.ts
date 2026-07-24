@@ -3,12 +3,23 @@
  *
  * Drop-in replacement for the `aws-amplify/auth` functions used by the app.
  * In demo mode, any credentials sign in successfully as the bundled demo
- * user and no Cognito calls are made. When demo mode is off, every function
- * delegates straight through to the real Amplify auth module.
+ * user and no server calls are made. When demo mode is off, every function
+ * delegates to the server-backed `../api/authClient` (POST /auth/* on the
+ * Express/Prisma server — see server/src/auth/routes.js) instead of Cognito.
+ *
+ * Only the type shapes of `aws-amplify/auth` are used here (a type-only
+ * import — no runtime dependency on the package from this module), so the
+ * rest of the app (authSlice, Login, Dashboard) doesn't need to change.
+ *
+ * The new API has no equivalent of Cognito's email-verification or
+ * password-reset flows (v1 has none). Where Amplify's contract expects a
+ * `nextStep`, those functions return a no-op "already done" shape instead of
+ * making a network call — see the comment on each.
  */
-import * as amplifyAuth from 'aws-amplify/auth';
+import type * as amplifyAuth from 'aws-amplify/auth';
 import { isDemoMode } from './demoConfig';
 import { DEMO_USER } from './fixtures';
+import * as authClient from '../api/authClient';
 
 let demoSignedIn = false;
 
@@ -27,7 +38,8 @@ export async function signIn(
         demoSignedIn = true;
         return { isSignedIn: true, nextStep: { signInStep: 'DONE' } } as Awaited<ReturnType<typeof amplifyAuth.signIn>>;
     }
-    return amplifyAuth.signIn(input);
+    await authClient.login(input.username ?? '', input.password ?? '');
+    return { isSignedIn: true, nextStep: { signInStep: 'DONE' } } as Awaited<ReturnType<typeof amplifyAuth.signIn>>;
 }
 
 export async function signUp(
@@ -36,7 +48,11 @@ export async function signUp(
     if (isDemoMode) {
         return { isSignUpComplete: true, nextStep: { signUpStep: 'DONE' } } as Awaited<ReturnType<typeof amplifyAuth.signUp>>;
     }
-    return amplifyAuth.signUp(input);
+    // No email-verification step in v1: register() signs the user in
+    // immediately, so this reports DONE rather than CONFIRM_SIGN_UP.
+    const email = input.options?.userAttributes?.email ?? input.username;
+    await authClient.register(email, input.password ?? '', undefined);
+    return { isSignUpComplete: true, nextStep: { signUpStep: 'DONE' } } as Awaited<ReturnType<typeof amplifyAuth.signUp>>;
 }
 
 export async function confirmSignUp(
@@ -46,7 +62,10 @@ export async function confirmSignUp(
         demoSignedIn = true;
         return { isSignUpComplete: true, nextStep: { signUpStep: 'DONE' } } as Awaited<ReturnType<typeof amplifyAuth.confirmSignUp>>;
     }
-    return amplifyAuth.confirmSignUp(input);
+    // No email-verification flow in v1 (signUp already signs the user in):
+    // a no-op success, no network call.
+    void input;
+    return { isSignUpComplete: true, nextStep: { signUpStep: 'DONE' } } as Awaited<ReturnType<typeof amplifyAuth.confirmSignUp>>;
 }
 
 export async function resendSignUpCode(
@@ -55,7 +74,12 @@ export async function resendSignUpCode(
     if (isDemoMode) {
         return { destination: DEMO_USER.email, deliveryMedium: 'EMAIL', attributeName: 'email' } as Awaited<ReturnType<typeof amplifyAuth.resendSignUpCode>>;
     }
-    return amplifyAuth.resendSignUpCode(input);
+    // No email-verification flow in v1: a no-op success, no network call.
+    return {
+        destination: input.username,
+        deliveryMedium: 'EMAIL',
+        attributeName: 'email',
+    } as Awaited<ReturnType<typeof amplifyAuth.resendSignUpCode>>;
 }
 
 export async function resetPassword(
@@ -67,7 +91,13 @@ export async function resetPassword(
             nextStep: { resetPasswordStep: 'CONFIRM_RESET_PASSWORD_WITH_CODE', codeDeliveryDetails: { destination: DEMO_USER.email, deliveryMedium: 'EMAIL' } },
         } as Awaited<ReturnType<typeof amplifyAuth.resetPassword>>;
     }
-    return amplifyAuth.resetPassword(input);
+    // No password-reset flow in v1: a no-op "nothing to do" success, no
+    // network call.
+    void input;
+    return {
+        isPasswordReset: true,
+        nextStep: { resetPasswordStep: 'DONE' },
+    } as Awaited<ReturnType<typeof amplifyAuth.resetPassword>>;
 }
 
 export async function confirmResetPassword(
@@ -76,7 +106,9 @@ export async function confirmResetPassword(
     if (isDemoMode) {
         return undefined as Awaited<ReturnType<typeof amplifyAuth.confirmResetPassword>>;
     }
-    return amplifyAuth.confirmResetPassword(input);
+    // No password-reset flow in v1: a no-op success, no network call.
+    void input;
+    return undefined as Awaited<ReturnType<typeof amplifyAuth.confirmResetPassword>>;
 }
 
 export async function getCurrentUser(): ReturnType<typeof amplifyAuth.getCurrentUser> {
@@ -86,14 +118,23 @@ export async function getCurrentUser(): ReturnType<typeof amplifyAuth.getCurrent
         }
         return demoUser();
     }
-    return amplifyAuth.getCurrentUser();
+    const user = await authClient.me();
+    return {
+        userId: user.id,
+        username: user.email,
+        signInDetails: { loginId: user.email },
+    } as Awaited<ReturnType<typeof amplifyAuth.getCurrentUser>>;
 }
 
 export async function fetchAuthSession(): ReturnType<typeof amplifyAuth.fetchAuthSession> {
     if (isDemoMode) {
         return { tokens: { accessToken: { payload: { 'cognito:groups': ['admin'] } } } } as unknown as Awaited<ReturnType<typeof amplifyAuth.fetchAuthSession>>;
     }
-    return amplifyAuth.fetchAuthSession();
+    const role = authClient.getStoredAuth()?.user.role;
+    const groups = role === 'admin' ? ['admin'] : [];
+    return {
+        tokens: { accessToken: { payload: { 'cognito:groups': groups } } },
+    } as unknown as Awaited<ReturnType<typeof amplifyAuth.fetchAuthSession>>;
 }
 
 export async function signOut(): ReturnType<typeof amplifyAuth.signOut> {
@@ -101,5 +142,6 @@ export async function signOut(): ReturnType<typeof amplifyAuth.signOut> {
         demoSignedIn = false;
         return undefined as Awaited<ReturnType<typeof amplifyAuth.signOut>>;
     }
-    return amplifyAuth.signOut();
+    await authClient.logout();
+    return undefined as Awaited<ReturnType<typeof amplifyAuth.signOut>>;
 }
