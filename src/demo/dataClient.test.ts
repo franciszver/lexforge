@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const REAL_CLIENT_MARKER = { __real: true };
-const generateClientMock = vi.fn(() => REAL_CLIENT_MARKER);
+const API_CLIENT_MARKER = { __api: true };
+const createApiDataClientMock = vi.fn(() => API_CLIENT_MARKER);
 
-vi.mock('aws-amplify/data', () => ({
-    generateClient: () => generateClientMock(),
+vi.mock('../api/apiDataClient', () => ({
+    createApiDataClient: () => createApiDataClientMock(),
 }));
 
 describe('dataClient', () => {
     beforeEach(() => {
         vi.resetModules();
-        generateClientMock.mockClear();
+        createApiDataClientMock.mockClear();
     });
 
     afterEach(() => {
@@ -22,11 +22,11 @@ describe('dataClient', () => {
             vi.stubEnv('VITE_DEMO_MODE', '');
         });
 
-        it('selects the real Amplify data client', async () => {
+        it('selects apiDataClient (non-demo mode)', async () => {
             const { getDataClient } = await import('./dataClient');
             const client = getDataClient();
-            expect(client).toBe(REAL_CLIENT_MARKER);
-            expect(generateClientMock).toHaveBeenCalled();
+            expect(client).toBe(API_CLIENT_MARKER);
+            expect(createApiDataClientMock).toHaveBeenCalled();
         });
     });
 
@@ -35,10 +35,10 @@ describe('dataClient', () => {
             vi.stubEnv('VITE_DEMO_MODE', '1');
         });
 
-        it('never calls the real Amplify client factory', async () => {
+        it('never calls the real apiDataClient factory', async () => {
             const { getDataClient } = await import('./dataClient');
             getDataClient();
-            expect(generateClientMock).not.toHaveBeenCalled();
+            expect(createApiDataClientMock).not.toHaveBeenCalled();
         });
 
         it('loads a non-empty clause library fixture', async () => {
