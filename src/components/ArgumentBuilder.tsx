@@ -118,7 +118,7 @@ interface ArgumentCardProps {
     onToggleExpand: () => void;
 }
 
-function ArgumentCard({
+export function ArgumentCard({
     argument,
     index,
     onEdit,
