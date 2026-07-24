@@ -132,7 +132,7 @@ describe('demoAuthClient', () => {
             await expect(auth.getCurrentUser()).rejects.toThrow();
         });
 
-        it("fetchAuthSession resolves cognito:groups from the stored user's role", async () => {
+        it("fetchAuthSession resolves groups from the stored user's role", async () => {
             authGetStoredAuth.mockReturnValue({
                 accessToken: 'a',
                 refreshToken: 'r',
@@ -142,7 +142,7 @@ describe('demoAuthClient', () => {
 
             const session = await auth.fetchAuthSession();
 
-            expect(session.tokens?.accessToken?.payload['cognito:groups']).toEqual(['admin']);
+            expect(session.groups).toEqual(['admin']);
         });
 
         it('fetchAuthSession resolves no admin group for a non-admin user', async () => {
@@ -155,7 +155,7 @@ describe('demoAuthClient', () => {
 
             const session = await auth.fetchAuthSession();
 
-            expect(session.tokens?.accessToken?.payload['cognito:groups']).toEqual([]);
+            expect(session.groups).toEqual([]);
         });
 
         it('signOut delegates to authClient.logout', async () => {
