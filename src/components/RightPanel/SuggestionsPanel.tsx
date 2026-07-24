@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
+import { onProxyStatus } from '../../demo/proxyClient';
 import {
   generateSuggestions,
   setSignals,
@@ -92,6 +93,11 @@ export function SuggestionsPanel() {
   } = useAppSelector((state) => state.suggestions);
   const { currentDocument } = useAppSelector((state) => state.document);
   const [showArchived, setShowArchived] = useState(false);
+  const [isWarming, setIsWarming] = useState(false);
+
+  useEffect(() => {
+    return onProxyStatus((status) => setIsWarming(status === 'warming'));
+  }, []);
 
   const handleGenerate = useCallback(() => {
     if (currentDocument) {
@@ -224,6 +230,12 @@ export function SuggestionsPanel() {
         <div className="px-4 py-3 bg-primary-50 border-b border-primary-100 flex items-center gap-2">
           <span className="spinner w-4 h-4 text-primary-600" />
           <span className="text-sm text-primary-700">Generating suggestions...</span>
+        </div>
+      )}
+
+      {isGenerating && isWarming && (
+        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+          Warming up the demo AI (free tier) — first call can take ~30–60s
         </div>
       )}
 

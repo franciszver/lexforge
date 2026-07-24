@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { onProxyStatus } from '../demo/proxyClient';
 import {
     ChevronRight,
     ChevronLeft,
@@ -408,6 +409,11 @@ export function ArgumentBuilder({
     const [currentStep, setCurrentStep] = useState<WizardStep>('facts');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isWarming, setIsWarming] = useState(false);
+
+    useEffect(() => {
+        return onProxyStatus((status) => setIsWarming(status === 'warming'));
+    }, []);
     
     // Input state
     const [facts, setFacts] = useState<string[]>(['']);
@@ -979,6 +985,12 @@ export function ArgumentBuilder({
                 <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                     <span className="ml-2 text-slate-600">Processing...</span>
+                </div>
+            )}
+
+            {loading && isWarming && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 text-center">
+                    Warming up the demo AI (free tier) — first call can take ~30–60s
                 </div>
             )}
             

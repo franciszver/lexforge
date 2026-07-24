@@ -18,11 +18,8 @@ import {
     DEMO_CLAUSES,
     DEMO_CITATIONS,
     DEMO_AUDIT_LOGS,
-    DEMO_ARGUMENT_OUTLINE,
-    DEMO_COUNTER_ARGUMENTS,
-    DEMO_COHERENCE_ANALYSIS,
-    DEMO_SUGGESTIONS,
 } from './fixtures';
+import { generateArgumentsResult, getSuggestionsResult } from './proxyClient';
 
 // ============================================
 // Generic in-memory "table" backing each model
@@ -169,25 +166,13 @@ function buildDemoClient() {
             Template: template,
         },
         queries: {
-            generateArguments: (args: { mode: string }) => {
-                switch (args.mode) {
-                    case 'generate':
-                    case 'strengthen':
-                        return Promise.resolve({ data: { success: true, outline: DEMO_ARGUMENT_OUTLINE }, errors: null });
-                    case 'counter':
-                        return Promise.resolve({ data: { success: true, counterArguments: DEMO_COUNTER_ARGUMENTS }, errors: null });
-                    case 'analyze':
-                        return Promise.resolve({ data: { success: true, analysis: DEMO_COHERENCE_ANALYSIS }, errors: null });
-                    default:
-                        return Promise.resolve({ data: { success: false, error: 'Unknown mode' }, errors: null });
-                }
+            generateArguments: async (args: { mode: string; [key: string]: unknown }) => {
+                const data = await generateArgumentsResult(args);
+                return { data, errors: null };
             },
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            askAI: (_args: { text?: string; context?: unknown }) => {
-                return Promise.resolve({
-                    data: { suggestions: DEMO_SUGGESTIONS, relevantClauses: [] },
-                    errors: null,
-                });
+            askAI: async (args: { text?: string; context?: unknown }) => {
+                const data = await getSuggestionsResult(args);
+                return { data, errors: null };
             },
         },
     };
