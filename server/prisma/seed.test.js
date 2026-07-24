@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createFakePrismaClient } from '../test-utils/fakePrismaClient.js';
+import { seed } from './seed.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const seedFilePath = path.join(__dirname, 'seed.js');
@@ -38,5 +40,21 @@ describe('seed.js guard clause', () => {
     // With the correct guard, seed runs and tries to connect, exiting non-zero with error
     expect(exitCode).not.toBe(0);
     expect(error).toBeDefined();
+  });
+});
+
+describe('seed function', () => {
+  let prisma;
+
+  beforeEach(() => {
+    prisma = createFakePrismaClient();
+  });
+
+  it('should create a demo user with role "user"', async () => {
+    const { user } = await seed(prisma);
+
+    expect(user).toBeDefined();
+    expect(user.email).toBe('demo@lexforge.app');
+    expect(user.role).toBe('user');
   });
 });

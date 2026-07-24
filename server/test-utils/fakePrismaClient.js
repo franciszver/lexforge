@@ -118,6 +118,14 @@ function createFakeModel({ uniqueFields = [] } = {}) {
       for (const record of matches) rows.delete(record.id);
       return { count: matches.length };
     },
+
+    async upsert({ where, create, update }) {
+      const existing = await this.findUnique({ where });
+      if (existing) {
+        return this.update({ where, data: update || {} });
+      }
+      return this.create({ data: create });
+    },
   };
 }
 
