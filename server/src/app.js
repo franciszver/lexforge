@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { createAuthRouter } from './auth/routes.js';
 import { createDataRouter } from './routes/index.js';
+import { createGenerateRouter } from './routes/generate.js';
 
 const JSON_BODY_LIMIT = '1mb';
 
@@ -18,6 +19,11 @@ export function createApp({ prisma, authRateLimitMax } = {}) {
   app.get('/healthz', (req, res) => {
     res.status(200).json({ ok: true });
   });
+
+  // Unauthenticated by design (see server/src/routes/generate.js): the
+  // static demo site calls this without a logged-in user or JWT, so it is
+  // mounted outside the `if (prisma)` auth-gated block below.
+  app.use('/api/generate', createGenerateRouter());
 
   if (prisma) {
     app.use('/auth', createAuthRouter({ prisma, rateLimitMax: authRateLimitMax }));

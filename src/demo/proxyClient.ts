@@ -3,14 +3,16 @@
  *
  * In demo mode, `queries.askAI` and `queries.generateArguments` (see
  * dataClient.ts) normally return canned [DEMO MODE] fixtures. When
- * `VITE_DEMO_PROXY_URL` is set, this module routes those calls to the
- * demo-proxy service (`POST {url}/api/generate`) for live OpenRouter output
- * instead, mapping its plain-text response back into the exact shapes
- * argumentService.ts and suggestionsSlice.ts already expect.
+ * `VITE_API_URL` (preferred; the server/ API's base URL) or, failing that,
+ * the legacy `VITE_DEMO_PROXY_URL` is set, this module routes those calls to
+ * `POST {url}/api/generate` for live OpenRouter output instead, mapping its
+ * plain-text response back into the exact shapes argumentService.ts and
+ * suggestionsSlice.ts already expect.
  *
- * If the URL is unset, or the proxy call fails/times out for any reason
- * (the Render free-tier proxy spins down when idle and can be slow to wake),
- * this falls back to the canned fixtures so the demo never looks broken.
+ * If neither URL is set, or the proxy call fails/times out for any reason
+ * (the Render free-tier service spins down when idle and can be slow to
+ * wake), this falls back to the canned fixtures so the demo never looks
+ * broken.
  */
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -61,7 +63,12 @@ function emitStatus(status: ProxyStatus): void {
 // ============================================
 
 function getProxyUrl(): string {
-    const raw = import.meta.env.VITE_DEMO_PROXY_URL;
+    // VITE_API_URL is the full server/ API's base URL (same var authClient.ts
+    // and dataClient.ts use); prefer it so demo builds pointed at the real
+    // server hit /api/generate there. VITE_DEMO_PROXY_URL is the legacy
+    // demo-proxy/ URL, kept as a fallback until that service is removed
+    // (P3.7). If neither is set, canned-only mode.
+    const raw = import.meta.env.VITE_API_URL || import.meta.env.VITE_DEMO_PROXY_URL;
     return raw ? raw.replace(/\/+$/, '') : '';
 }
 

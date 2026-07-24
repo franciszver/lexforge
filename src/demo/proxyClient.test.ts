@@ -41,6 +41,37 @@ describe('proxyClient', () => {
         });
     });
 
+    describe('URL resolution precedence', () => {
+        it('prefers VITE_API_URL over VITE_DEMO_PROXY_URL when both are set', async () => {
+            vi.stubEnv('VITE_API_URL', 'http://localhost:9001');
+            vi.stubEnv('VITE_DEMO_PROXY_URL', 'http://localhost:3001');
+            (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+                ok: true,
+                json: async () => ({ text: 'text', model: 'm' }),
+            });
+
+            const { getSuggestionsResult } = await import('./proxyClient');
+            await getSuggestionsResult({ text: 'x' });
+
+            const [url] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(url).toBe('http://localhost:9001/api/generate');
+        });
+
+        it('falls back to VITE_DEMO_PROXY_URL when VITE_API_URL is unset', async () => {
+            vi.stubEnv('VITE_DEMO_PROXY_URL', 'http://localhost:3001');
+            (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+                ok: true,
+                json: async () => ({ text: 'text', model: 'm' }),
+            });
+
+            const { getSuggestionsResult } = await import('./proxyClient');
+            await getSuggestionsResult({ text: 'x' });
+
+            const [url] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(url).toBe('http://localhost:3001/api/generate');
+        });
+    });
+
     describe('proxy URL set', () => {
         beforeEach(() => {
             vi.stubEnv('VITE_DEMO_PROXY_URL', 'http://localhost:3001');
