@@ -19,6 +19,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
-    exclude: [...configDefaults.exclude, 'demo-proxy/**'],
+    exclude: [...configDefaults.exclude, 'demo-proxy/**', 'server/**'],
   },
 })
