@@ -101,6 +101,17 @@ describe('drafts API', () => {
       const res = await request(app).patch('/drafts/no-such-id').set(auth(owner.accessToken)).send({ title: 'x' });
       expect(res.status).toBe(404);
     });
+
+    it('ignores an attempt to reassign userId in the body (mass assignment)', async () => {
+      const created = await request(app).post('/drafts').set(auth(owner.accessToken)).send({ title: 'x' });
+      const res = await request(app)
+        .patch(`/drafts/${created.body.id}`)
+        .set(auth(owner.accessToken))
+        .send({ userId: other.user.id, title: 'still mine' });
+      expect(res.status).toBe(200);
+      expect(res.body.userId).toBe(owner.user.id);
+      expect(res.body.title).toBe('still mine');
+    });
   });
 
   describe('DELETE /drafts/:id', () => {

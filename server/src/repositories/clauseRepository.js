@@ -1,12 +1,33 @@
 // Repository for the Clause aggregate, including each user's favorites
 // (UserClauseFavorite).
 
+import { pick } from './pick.js';
+
+// Client-writable content fields (see prisma/schema.prisma Clause model).
+// Excludes id, usageCount/lastUsedAt (managed by incrementClauseUsage),
+// isPublished (trust flag), createdAt/updatedAt.
+const WRITABLE_FIELDS = [
+  'title',
+  'content',
+  'description',
+  'category',
+  'subcategory',
+  'tags',
+  'jurisdiction',
+  'documentTypes',
+  'variations',
+  'author',
+  'isFavorite',
+  'notes',
+  'placeholders',
+];
+
 export async function createClause(prisma, data) {
   return prisma.clause.create({
     data: {
-      ...data,
-      usageCount: data.usageCount ?? 0,
-      isPublished: data.isPublished ?? true,
+      ...pick(data, WRITABLE_FIELDS),
+      usageCount: 0,
+      isPublished: true,
     },
   });
 }
@@ -16,7 +37,7 @@ export async function getClause(prisma, id) {
 }
 
 export async function updateClause(prisma, id, data) {
-  return prisma.clause.update({ where: { id }, data });
+  return prisma.clause.update({ where: { id }, data: pick(data, WRITABLE_FIELDS) });
 }
 
 export async function deleteClause(prisma, id) {
@@ -65,8 +86,9 @@ export async function addClauseFavorite(prisma, userId, clauseId, notes) {
   });
 }
 
-export async function removeClauseFavorite(prisma, id) {
-  return prisma.userClauseFavorite.delete({ where: { id } });
+export async function removeClauseFavorite(prisma, id, userId) {
+  const { count } = await prisma.userClauseFavorite.deleteMany({ where: { id, userId } });
+  return count > 0;
 }
 
 export async function findClauseFavorite(prisma, userId, clauseId) {

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { asyncHandler } from './asyncHandler.js';
-import { withNotFound } from './helpers.js';
 import {
   createClause,
   getClause,
@@ -51,7 +50,7 @@ export function createClausesRouter({ prisma }) {
   router.delete(
     '/favorites/:id',
     asyncHandler(async (req, res) => {
-      const removed = await withNotFound(removeClauseFavorite(prisma, req.params.id));
+      const removed = await removeClauseFavorite(prisma, req.params.id, req.user.id);
       if (!removed) return res.status(404).json({ error: 'Favorite not found' });
       res.status(204).send();
     })

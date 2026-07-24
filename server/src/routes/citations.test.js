@@ -8,11 +8,13 @@ describe('citations API', () => {
   let app;
   let prisma;
   let user;
+  let other;
 
   beforeEach(async () => {
     prisma = createFakePrismaClient();
     app = createApp({ prisma });
     user = await registerUser(app);
+    other = await registerUser(app);
   });
 
   function auth(token) {
@@ -148,6 +150,22 @@ describe('citations API', () => {
     it('returns 404 for an unknown favorite', async () => {
       const res = await request(app).delete('/citations/favorites/no-such-id').set(auth(user.accessToken));
       expect(res.status).toBe(404);
+    });
+
+    it('does not let another user remove your favorite (IDOR)', async () => {
+      const created = await createCitation();
+      const addRes = await request(app)
+        .post('/citations/favorites')
+        .set(auth(user.accessToken))
+        .send({ citationId: created.body.id });
+
+      const res = await request(app)
+        .delete(`/citations/favorites/${addRes.body.id}`)
+        .set(auth(other.accessToken));
+      expect(res.status).toBe(404);
+
+      const listRes = await request(app).get('/citations/favorites/mine').set(auth(user.accessToken));
+      expect(listRes.body).toHaveLength(1);
     });
   });
 });

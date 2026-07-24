@@ -8,11 +8,13 @@ describe('clauses API', () => {
   let app;
   let prisma;
   let user;
+  let other;
 
   beforeEach(async () => {
     prisma = createFakePrismaClient();
     app = createApp({ prisma });
     user = await registerUser(app);
+    other = await registerUser(app);
   });
 
   function auth(token) {
@@ -164,6 +166,22 @@ describe('clauses API', () => {
     it('returns 404 for an unknown favorite', async () => {
       const res = await request(app).delete('/clauses/favorites/no-such-id').set(auth(user.accessToken));
       expect(res.status).toBe(404);
+    });
+
+    it('does not let another user remove your favorite (IDOR)', async () => {
+      const created = await createClause();
+      const addRes = await request(app)
+        .post('/clauses/favorites')
+        .set(auth(user.accessToken))
+        .send({ clauseId: created.body.id });
+
+      const res = await request(app)
+        .delete(`/clauses/favorites/${addRes.body.id}`)
+        .set(auth(other.accessToken));
+      expect(res.status).toBe(404);
+
+      const listRes = await request(app).get('/clauses/favorites/mine').set(auth(user.accessToken));
+      expect(listRes.body).toHaveLength(1);
     });
   });
 });

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { asyncHandler } from './asyncHandler.js';
-import { withNotFound } from './helpers.js';
 import {
   createCitation,
   getCitation,
@@ -50,7 +49,7 @@ export function createCitationsRouter({ prisma }) {
   router.delete(
     '/favorites/:id',
     asyncHandler(async (req, res) => {
-      const removed = await withNotFound(removeCitationFavorite(prisma, req.params.id));
+      const removed = await removeCitationFavorite(prisma, req.params.id, req.user.id);
       if (!removed) return res.status(404).json({ error: 'Favorite not found' });
       res.status(204).send();
     })
