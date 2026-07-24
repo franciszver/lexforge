@@ -91,7 +91,9 @@ function createFakeModel({ uniqueFields = [] } = {}) {
     },
 
     async update({ where, data }) {
-      const existing = where.id !== undefined ? rows.get(where.id) : undefined;
+      const existing = where.id !== undefined
+        ? rows.get(where.id)
+        : [...rows.values()].find((r) => matchesWhere(r, where));
       if (!existing) {
         throw new Error(`Record not found for update: ${JSON.stringify(where)}`);
       }

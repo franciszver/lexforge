@@ -352,7 +352,7 @@ export async function seed(prisma) {
 
   const user = await prisma.user.upsert({
     where: { email: DEMO_USER_EMAIL },
-    update: {},
+    update: { role: 'user' },
     create: {
       email: DEMO_USER_EMAIL,
       passwordHash,
@@ -411,3 +411,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       process.exit(1);
     });
 }
+
+export { DEMO_USER_EMAIL };
