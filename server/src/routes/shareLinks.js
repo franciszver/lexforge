@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { asyncHandler } from './asyncHandler.js';
 import { withNotFound } from './helpers.js';
 import {
@@ -12,8 +12,10 @@ import {
 } from '../repositories/shareLinkRepository.js';
 import { requireDraftOwner } from './ownership.js';
 
+// Cryptographically strong, unguessable passcode (64 bits of entropy) —
+// Math.random() is not a CSPRNG and must never gate access to a document.
 function generatePasscode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  return randomBytes(8).toString('hex').toUpperCase();
 }
 
 export function createShareLinksRouter({ prisma }) {

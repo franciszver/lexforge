@@ -39,6 +39,18 @@ describe('share-links API', () => {
       expect(res.body.isActive).toBe(true);
     });
 
+    it('generates a cryptographically strong passcode (16 hex chars, not Math.random)', async () => {
+      const res = await request(app)
+        .post('/share-links')
+        .set(auth(owner.accessToken))
+        .send({ documentId: draftId });
+
+      // randomBytes(8).toString('hex').toUpperCase() => 16 uppercase hex chars.
+      // Math.random().toString(36).substring(2, 8) would be 6 base36 chars,
+      // so this length+charset assertion also rules out the old generator.
+      expect(res.body.passcode).toMatch(/^[0-9A-F]{16}$/);
+    });
+
     it('rejects a missing documentId (400)', async () => {
       const res = await request(app).post('/share-links').set(auth(owner.accessToken)).send({});
       expect(res.status).toBe(400);

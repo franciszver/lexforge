@@ -44,10 +44,19 @@ export function createCollaboratorsRouter({ prisma }) {
     })
   );
 
-  router.post(
-    '/accept/:token',
+  router.get(
+    '/token/:token',
     asyncHandler(async (req, res) => {
       const invite = await findCollaboratorByToken(prisma, req.params.token);
+      if (!invite) return res.status(404).json({ error: 'Invitation not found' });
+      res.json(invite);
+    })
+  );
+
+  router.post(
+    '/:id/accept',
+    asyncHandler(async (req, res) => {
+      const invite = await getCollaboratorById(prisma, req.params.id);
       if (!invite) return res.status(404).json({ error: 'Invitation not found' });
       res.json(await acceptCollaboratorInvite(prisma, invite.id, req.user.id));
     })

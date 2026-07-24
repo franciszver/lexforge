@@ -71,7 +71,29 @@ describe('collaborators API', () => {
     });
   });
 
-  describe('POST /collaborators/accept/:token', () => {
+  describe('GET /collaborators/token/:token', () => {
+    it('looks up a pending invitation by token (200)', async () => {
+      const invite = await request(app)
+        .post('/collaborators')
+        .set(auth(owner.accessToken))
+        .send({ documentId: draftId, collaboratorEmail: invitee.user.email, role: 'editor' });
+
+      const res = await request(app)
+        .get(`/collaborators/token/${invite.body.inviteToken}`)
+        .set(auth(invitee.accessToken));
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(invite.body.id);
+      expect(res.body.status).toBe('pending');
+    });
+
+    it('returns 404 for an unknown token', async () => {
+      const res = await request(app).get('/collaborators/token/no-such-token').set(auth(invitee.accessToken));
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('POST /collaborators/:id/accept', () => {
     it('accepts an invitation (200)', async () => {
       const invite = await request(app)
         .post('/collaborators')
@@ -79,7 +101,7 @@ describe('collaborators API', () => {
         .send({ documentId: draftId, collaboratorEmail: invitee.user.email, role: 'editor' });
 
       const res = await request(app)
-        .post(`/collaborators/accept/${invite.body.inviteToken}`)
+        .post(`/collaborators/${invite.body.id}/accept`)
         .set(auth(invitee.accessToken));
 
       expect(res.status).toBe(200);
@@ -87,8 +109,8 @@ describe('collaborators API', () => {
       expect(res.body.collaboratorUserId).toBe(invitee.user.id);
     });
 
-    it('returns 404 for an unknown token', async () => {
-      const res = await request(app).post('/collaborators/accept/no-such-token').set(auth(invitee.accessToken));
+    it('returns 404 for an unknown invitation', async () => {
+      const res = await request(app).post('/collaborators/no-such-id/accept').set(auth(invitee.accessToken));
       expect(res.status).toBe(404);
     });
   });
