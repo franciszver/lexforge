@@ -30,6 +30,7 @@ coverage
 node_modules
 .amplify
 amplify_outputs*
+!amplify_outputs.example.json
 amplifyconfiguration*
 
 # process scaffolding
