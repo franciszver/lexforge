@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard, Login, Editor, Admin } from './pages';
-import { ProtectedRoute, AdminRoute, NewDocumentModal, ShareModal, InviteCollaboratorModal, ClauseBrowser, DeleteConfirmModal } from './components';
+import { ProtectedRoute, AdminRoute, NewDocumentModal, ShareModal, InviteCollaboratorModal, ClauseBrowser, CitationBrowser, DeleteConfirmModal } from './components';
 import { useAppSelector, useAppDispatch } from './store';
-import { setShowClauseBrowser, setPendingInsertion } from './features/uiSlice';
-import { useCallback } from 'react';
+import { setShowClauseBrowser, setShowCitationBrowser, setPendingInsertion } from './features/uiSlice';
+import type { Citation } from './utils/citationTypes';
+import { useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { X } from 'lucide-react';
 
 /**
  * Main App Component with route protection and global modals.
@@ -12,13 +14,29 @@ import { v4 as uuidv4 } from 'uuid';
  */
 function AppContent() {
   const dispatch = useAppDispatch();
-  const { showNewDocModal, showShareModal, showInviteModal, showClauseBrowser, showDeleteConfirm } = useAppSelector((state) => state.ui);
-  
+  const { showNewDocModal, showShareModal, showInviteModal, showClauseBrowser, showCitationBrowser, showDeleteConfirm } = useAppSelector((state) => state.ui);
+
   // Handle clause insertion
   const handleClauseInsert = useCallback((content: string) => {
     dispatch(setPendingInsertion({ text: content, suggestionId: uuidv4() }));
     dispatch(setShowClauseBrowser(false));
   }, [dispatch]);
+
+  // Handle citation insertion
+  const handleCitationInsert = useCallback((html: string, _citation: Citation) => {
+    dispatch(setPendingInsertion({ text: html, suggestionId: uuidv4() }));
+    dispatch(setShowCitationBrowser(false));
+  }, [dispatch]);
+
+  // Close citation browser on Escape
+  useEffect(() => {
+    if (!showCitationBrowser) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dispatch(setShowCitationBrowser(false));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showCitationBrowser, dispatch]);
 
   return (
     <>
@@ -71,6 +89,26 @@ function AppContent() {
       {showShareModal && <ShareModal />}
       {showInviteModal && <InviteCollaboratorModal />}
       {showClauseBrowser && <ClauseBrowser onInsert={handleClauseInsert} />}
+      {showCitationBrowser && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => dispatch(setShowCitationBrowser(false))}
+        >
+          <div
+            className="relative bg-white rounded-xl shadow-xl w-full max-w-5xl h-[85vh] flex flex-col animate-slide-up overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => dispatch(setShowCitationBrowser(false))}
+              className="absolute top-3 right-3 z-10 p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Close citation browser"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <CitationBrowser onInsertCitation={handleCitationInsert} />
+          </div>
+        </div>
+      )}
       {showDeleteConfirm && <DeleteConfirmModal />}
     </>
   );

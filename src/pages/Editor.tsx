@@ -14,7 +14,7 @@ import {
     updateStatus,
     createSnapshot,
 } from '../features/documentSlice';
-import { toggleRightPanel, setShowShareModal, setShowInviteModal, setShowClauseBrowser, clearPendingInsertion } from '../features/uiSlice';
+import { toggleRightPanel, setShowShareModal, setShowInviteModal, setShowClauseBrowser, setShowCitationBrowser, clearPendingInsertion } from '../features/uiSlice';
 import { generateSuggestions } from '../features/suggestionsSlice';
 import { RightPanel, StatusBar } from '../components';
 import { PresenceIndicator, usePresenceEditing } from '../components/PresenceIndicator';
@@ -25,7 +25,7 @@ import { CollaborationCursor } from '../extensions/CollaborationCursor';
 import type { DocumentSyncState, UserPresence } from '../utils/presenceTypes';
 import {
     FileText, LayoutList, Sparkles, Download, Share2, Users, BookOpen,
-    Bold, Italic, List, ListOrdered, Undo, Redo, PanelRight, Save
+    Bold, Italic, List, ListOrdered, Undo, Redo, PanelRight, Save, Scale
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -215,7 +215,11 @@ export const Editor = () => {
     const handleOpenClauses = useCallback(() => {
         dispatch(setShowClauseBrowser(true));
     }, [dispatch]);
-    
+
+    const handleOpenCitations = useCallback(() => {
+        dispatch(setShowCitationBrowser(true));
+    }, [dispatch]);
+
     // Handle presence updates (can be used for UI indicators)
     const handlePresenceChange = useCallback((_presences: UserPresence[]) => {
         // Presences are displayed in the PresenceIndicator component
@@ -461,6 +465,14 @@ export const Editor = () => {
                     >
                         <BookOpen className="w-4 h-4" />
                         <span className="text-xs">Clauses</span>
+                    </button>
+                    <button
+                        onClick={handleOpenCitations}
+                        className="p-2 rounded hover:bg-slate-100 text-slate-600 flex items-center gap-1"
+                        title="Insert Citation"
+                    >
+                        <Scale className="w-4 h-4" />
+                        <span className="text-xs">Citations</span>
                     </button>
                 </div>
             )}

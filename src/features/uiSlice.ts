@@ -20,6 +20,7 @@ interface UIState {
   showShareModal: boolean;
   showInviteModal: boolean;
   showClauseBrowser: boolean;
+  showCitationBrowser: boolean;
   showDeleteConfirm: string | null; // documentId or null
   pendingInsertion: PendingInsertion | null; // Text to insert into editor
 }
@@ -32,6 +33,7 @@ const initialState: UIState = {
   showShareModal: false,
   showInviteModal: false,
   showClauseBrowser: false,
+  showCitationBrowser: false,
   showDeleteConfirm: null,
   pendingInsertion: null,
 };
@@ -64,6 +66,9 @@ const uiSlice = createSlice({
     setShowClauseBrowser: (state, action: PayloadAction<boolean>) => {
       state.showClauseBrowser = action.payload;
     },
+    setShowCitationBrowser: (state, action: PayloadAction<boolean>) => {
+      state.showCitationBrowser = action.payload;
+    },
     setShowDeleteConfirm: (state, action: PayloadAction<string | null>) => {
       state.showDeleteConfirm = action.payload;
     },
@@ -85,6 +90,7 @@ export const {
   setShowShareModal,
   setShowInviteModal,
   setShowClauseBrowser,
+  setShowCitationBrowser,
   setShowDeleteConfirm,
   setPendingInsertion,
   clearPendingInsertion,

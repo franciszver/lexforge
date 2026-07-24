@@ -138,6 +138,7 @@ const renderEditor = (hasDocument = true) => {
                 showShareModal: false,
                 showInviteModal: false,
                 showClauseBrowser: false,
+                showCitationBrowser: false,
                 showDeleteConfirm: null,
                 pendingInsertion: null,
             },
@@ -248,6 +249,20 @@ describe('Editor Component', () => {
             const statusSelect = screen.getByDisplayValue('Draft');
             expect(statusSelect).toBeInTheDocument();
         });
+    });
+
+    it('opens the citation browser when Citations button is clicked', async () => {
+        const { store } = renderEditor(true);
+
+        await waitFor(() => {
+            expect(screen.getByTitle(/Insert Citation/i)).toBeInTheDocument();
+        });
+
+        const citationsBtn = screen.getByTitle(/Insert Citation/i);
+        fireEvent.click(citationsBtn);
+
+        const state = store.getState();
+        expect(state.ui.showCitationBrowser).toBe(true);
     });
 
     // Note: "Document not found" test removed because the mock always returns
