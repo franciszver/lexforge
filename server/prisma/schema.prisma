@@ -1,0 +1,16 @@
+// Placeholder Prisma schema for the P3.1 scaffold.
+// The real domain schema lands in P3.2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model HealthCheck {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
