@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import {
     Search,
     Filter,
@@ -47,6 +48,7 @@ import {
 } from '../utils/citationService';
 import type { CitationStyle } from '../utils/citationTypes';
 import { formatCitation, citationToHtml } from '../utils/citationFormatter';
+import { safeHref } from '../utils/safeHref';
 
 // ============================================
 // Type Icons
@@ -207,7 +209,7 @@ function CitationPreview({ citation, style, onInsert, onClose, onCopyToClipboard
                         </button>
                     </div>
                     <div className="p-3 bg-slate-50 rounded-lg text-sm">
-                        <span dangerouslySetInnerHTML={{ __html: citationToHtml(citation, style) }} />
+                        <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(citationToHtml(citation, style)) }} />
                     </div>
                     <button
                         onClick={() => onInsert('full')}
@@ -290,7 +292,7 @@ function CitationPreview({ citation, style, onInsert, onClose, onCopyToClipboard
                 {citation.url && (
                     <div className="pt-4 border-t border-slate-200">
                         <a
-                            href={citation.url}
+                            href={safeHref(citation.url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"

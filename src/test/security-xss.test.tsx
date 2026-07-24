@@ -77,7 +77,7 @@ describe('citationToHtml escapes interpolated citation fields', () => {
         const html = citationToHtml(citation);
 
         expect(html).not.toContain('<img');
-        expect(html.toLowerCase()).not.toContain('onerror=');
+        expect(html).toContain('&lt;img');
     });
 
     it('still italicizes the case name with a literal <em> tag', () => {

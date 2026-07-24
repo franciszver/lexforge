@@ -483,17 +483,32 @@ export function validateCitation(citation: Partial<Citation>): { valid: boolean;
 }
 
 /**
+ * Escape HTML-significant characters in a string.
+ * Used to defend against XSS when interpolating user-supplied citation
+ * fields into HTML output.
+ */
+function escapeHtml(s: string): string {
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
  * Generate HTML for displaying a formatted citation
  */
 export function citationToHtml(citation: Citation, style: CitationStyle = 'bluebook'): string {
     const formatted = formatCitation(citation, style);
-    
+    const escapedFull = escapeHtml(formatted.full);
+
     // For cases, italicize the case name
     if (citation.type === 'case') {
-        const caseName = citation.title;
-        return formatted.full.replace(caseName, `<em>${caseName}</em>`);
+        const escapedCaseName = escapeHtml(citation.title);
+        return escapedFull.replace(escapedCaseName, `<em>${escapedCaseName}</em>`);
     }
-    
-    return formatted.full;
+
+    return escapedFull;
 }
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { onProxyStatus } from '../../demo/proxyClient';
+import { safeHref } from '../../utils/safeHref';
 import {
   generateSuggestions,
   setSignals,
@@ -569,9 +571,9 @@ function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCo
               </button>
             )}
           </div>
-          <div 
+          <div
             className="text-sm text-amber-800 prose prose-sm max-w-none line-clamp-4"
-            dangerouslySetInnerHTML={{ __html: suggestion.clauseContent }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(suggestion.clauseContent) }}
           />
         </div>
       )}
@@ -594,7 +596,7 @@ function SuggestionCard({ suggestion, isCollapsed, isArchived, onPin, onToggleCo
               return (
                 <a
                   key={i}
-                  href={ref}
+                  href={safeHref(ref)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 p-2 rounded-md bg-slate-50 hover:bg-primary-50 border border-slate-100 hover:border-primary-200 transition-colors group"
