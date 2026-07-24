@@ -1,12 +1,39 @@
 // Repository for the Citation aggregate, including each user's favorites
 // (UserCitationFavorite).
 
+import { pick } from './pick.js';
+
+// Client-writable content fields (see prisma/schema.prisma Citation model).
+// Excludes id, usageCount/lastUsedAt (managed by incrementCitationUsage),
+// isVerified (trust flag), createdBy (identity field), createdAt/updatedAt.
+const WRITABLE_FIELDS = [
+  'title',
+  'citation',
+  'type',
+  'court',
+  'year',
+  'volume',
+  'reporter',
+  'page',
+  'pinpoint',
+  'jurisdiction',
+  'codeTitle',
+  'section',
+  'subdivision',
+  'shortForm',
+  'parenthetical',
+  'url',
+  'category',
+  'tags',
+  'notes',
+];
+
 export async function createCitation(prisma, data) {
   return prisma.citation.create({
     data: {
-      ...data,
-      usageCount: data.usageCount ?? 0,
-      isVerified: data.isVerified ?? false,
+      ...pick(data, WRITABLE_FIELDS),
+      usageCount: 0,
+      isVerified: false,
     },
   });
 }
@@ -16,7 +43,7 @@ export async function getCitation(prisma, id) {
 }
 
 export async function updateCitation(prisma, id, data) {
-  return prisma.citation.update({ where: { id }, data });
+  return prisma.citation.update({ where: { id }, data: pick(data, WRITABLE_FIELDS) });
 }
 
 export async function deleteCitation(prisma, id) {
@@ -59,8 +86,9 @@ export async function addCitationFavorite(prisma, userId, citationId, notes) {
   });
 }
 
-export async function removeCitationFavorite(prisma, id) {
-  return prisma.userCitationFavorite.delete({ where: { id } });
+export async function removeCitationFavorite(prisma, id, userId) {
+  const { count } = await prisma.userCitationFavorite.deleteMany({ where: { id, userId } });
+  return count > 0;
 }
 
 export async function listCitationFavoritesByUser(prisma, userId) {
