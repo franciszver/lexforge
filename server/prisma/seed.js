@@ -357,7 +357,7 @@ export async function seed(prisma) {
       email: DEMO_USER_EMAIL,
       passwordHash,
       name: 'Demo User',
-      role: 'admin',
+      role: 'user',
     },
   });
 
