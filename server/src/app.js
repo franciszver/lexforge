@@ -20,7 +20,9 @@ export function createApp() {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     const status = err.status || err.statusCode || 500;
-    res.status(status).json({ error: err.message || 'Internal server error' });
+    // Client errors may carry their message; 5xx must never leak internals.
+    const message = status < 500 ? err.message || 'Bad request' : 'Internal server error';
+    res.status(status).json({ error: message });
   });
 
   return app;
