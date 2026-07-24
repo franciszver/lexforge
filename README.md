@@ -3,9 +3,9 @@
 **AI-powered demand-letter drafting for law firms** — draft, collaborate on, and format legal demand letters with AI-assisted argument building, a reusable clause library, and court-rules-aware formatting.
 
 [![CI](https://github.com/franciszver/lexforge/actions/workflows/ci.yml/badge.svg)](https://github.com/franciszver/lexforge/actions/workflows/ci.yml)
-**450+ tests** · React 19 · TypeScript · AWS Amplify Gen 2
+**743 tests** · React 19 · TypeScript · Node/Express · Render
 
-> **Live demo:** _coming soon_
+> **Live demo:** [lexforge-demo.onrender.com](https://lexforge-demo.onrender.com) — demo mode: sign in with any email/password. Documents and clauses are bundled fixture data; AI suggestions are live (OpenRouter free-tier models via the API's rate-limited endpoint — the first call after idle may take ~30–60s while the free-tier server wakes).
 
 ## Features
 
@@ -22,9 +22,11 @@
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Redux Toolkit, Tiptap (ProseMirror), Tailwind CSS |
-| Backend | AWS Amplify Gen 2 — Cognito (auth), AppSync GraphQL (API + real-time subscriptions), DynamoDB |
-| Serverless | 3 Lambdas: `audit-logger`, `generate-argument`, `generate-suggestion` |
-| Testing | Vitest + Testing Library — 453 tests across 23 files |
+| API server | Node.js, Express, JWT auth, Socket.IO (real-time) |
+| Database | PostgreSQL via Prisma ORM, hosted on Neon |
+| AI | OpenRouter, called from the server's AI generate endpoint |
+| Hosting | Render — static site (frontend) + web service (API) |
+| Testing | Vitest + Testing Library (frontend), Vitest + Supertest (server) — 743 tests across 54 files |
 
 ## Architecture
 
@@ -33,21 +35,24 @@
 │  React SPA (Vite + Redux Toolkit + Tiptap)  │
 │  editor · clause library · citations · args │
 └──────────────┬──────────────────────────────┘
-               │ Amplify client
-   ┌───────────┼─────────────────┐
-   ▼           ▼                 ▼
-┌────────┐ ┌──────────────┐ ┌─────────────────┐
-│Cognito │ │AppSync GraphQL│ │ Lambdas         │
-│ auth   │ │ + real-time  │ │ audit-logger    │
-└────────┘ │ subscriptions │ │ generate-arg    │
-           └──────┬───────┘ │ generate-suggest│
-                  ▼          └─────────────────┘
-             ┌─────────┐
-             │DynamoDB │
-             └─────────┘
+               │ VITE_API_URL (REST + WebSocket)
+               ▼
+┌───────────────────────────────────────────────┐
+│  API server (Node/Express)                     │
+│  auth (JWT) · REST data · AI generate · Socket.IO │
+└──────────────┬──────────────────────┬─────────┘
+               │                      │
+               ▼                      ▼
+       ┌───────────────┐      ┌──────────────┐
+       │ Postgres (Neon)│      │ OpenRouter   │
+       └───────────────┘      └──────────────┘
 ```
 
-Real-time collaboration rides AppSync subscriptions: presence and cursor updates are throttled client-side and fanned out to all sessions on a document.
+Real-time collaboration rides Socket.IO: presence and cursor updates are throttled client-side and fanned out to all sessions on a document.
+
+## Live demo
+
+The hosted demo (**demo mode**) serves bundled fixture data — no database and no real accounts — while AI suggestions call the live API (free-tier models, rate-limited and capped). Sign in with any email and password to explore the full UI.
 
 ## Local setup
 
@@ -55,15 +60,29 @@ Real-time collaboration rides AppSync subscriptions: presence and cursor updates
 git clone https://github.com/franciszver/lexforge.git
 cd lexforge
 npm install
-cp amplify_outputs.example.json amplify_outputs.json   # placeholder backend config
+VITE_DEMO_MODE=1 npm run dev   # demo mode: fixture data, no backend required
+```
+
+To run against a local API server instead:
+
+```bash
+cd server
+cp .env.example .env   # fill in DATABASE_URL, JWT_SECRET, OPENROUTER_API_KEY
+npm install
+npx prisma generate
 npm run dev
 ```
 
-The placeholder config is enough to build and explore the UI. For a live backend (auth, data, AI), deploy an Amplify sandbox — `npx ampx sandbox` — which regenerates `amplify_outputs.json` with real resource IDs. Details in [docs/SETUP.md](docs/SETUP.md).
+```bash
+VITE_API_URL=http://localhost:3001 npm run dev
+```
+
+Details in [docs/SETUP.md](docs/SETUP.md).
 
 ```bash
-npx vitest run   # 450+ tests
-npm run build    # production build
+npx vitest run          # frontend: 525 tests
+cd server && npm test   # server: 218 tests
+npm run build            # production build
 ```
 
 ## License
