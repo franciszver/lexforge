@@ -12,7 +12,7 @@ if (isMainModule) {
   const prisma = new PrismaClient();
   const app = createApp({ prisma });
   const httpServer = createServer(app);
-  attachRealtime(httpServer);
+  attachRealtime(httpServer, { prisma });
   const port = process.env.PORT || 3000;
   httpServer.listen(port, () => {
     // eslint-disable-next-line no-console
