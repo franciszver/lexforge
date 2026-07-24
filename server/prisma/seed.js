@@ -6,6 +6,7 @@
 // No live DB is available in this environment — this script is written and
 // reviewed but intentionally NOT run here.
 
+import { pathToFileURL } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -400,7 +401,7 @@ export async function seed(prisma) {
 
 // Only run when executed directly (`node prisma/seed.js` / `prisma db seed`),
 // never as a side effect of importing this module.
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const prisma = new PrismaClient();
   seed(prisma)
     .then(() => prisma.$disconnect())
