@@ -28,3 +28,10 @@ coverage
 
 # process scaffolding
 prd/
+
+# Demo media working dir (frames + mp4; gif is committed under docs/assets)
+.demo-media/
+
+# Python caches
+__pycache__/
+.pytest_cache/
