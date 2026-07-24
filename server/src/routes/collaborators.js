@@ -53,11 +53,25 @@ export function createCollaboratorsRouter({ prisma }) {
     })
   );
 
+  // Authorization here is the token itself (a high-entropy, single-use
+  // secret) plus a defense-in-depth check that the accepting user is the
+  // one who was invited. A database id is NOT sufficient authorization —
+  // ids are sequential/guessable relative to a token and must never accept
+  // someone else's invitation. Every rejection reason collapses to the same
+  // generic 404 so a caller can't distinguish "wrong token" from "expired"
+  // from "not your invite".
   router.post(
-    '/:id/accept',
+    '/accept/:token',
     asyncHandler(async (req, res) => {
-      const invite = await getCollaboratorById(prisma, req.params.id);
-      if (!invite) return res.status(404).json({ error: 'Invitation not found' });
+      const invite = await findCollaboratorByToken(prisma, req.params.token);
+      const expired = invite && invite.inviteExpiresAt && new Date(invite.inviteExpiresAt) < new Date();
+      const emailMismatch =
+        invite && invite.collaboratorEmail.toLowerCase() !== (req.user.email || '').toLowerCase();
+
+      if (!invite || invite.status !== 'pending' || expired || emailMismatch) {
+        return res.status(404).json({ error: 'Invalid or expired invitation' });
+      }
+
       res.json(await acceptCollaboratorInvite(prisma, invite.id, req.user.id));
     })
   );

@@ -93,8 +93,23 @@ describe('collaborators API', () => {
     });
   });
 
-  describe('POST /collaborators/:id/accept', () => {
-    it('accepts an invitation (200)', async () => {
+  describe('POST /collaborators/accept/:token', () => {
+    it('accepts an invitation for the invited user (200)', async () => {
+      const invite = await request(app)
+        .post('/collaborators')
+        .set(auth(owner.accessToken))
+        .send({ documentId: draftId, collaboratorEmail: invitee.user.email, role: 'editor' });
+
+      const res = await request(app)
+        .post(`/collaborators/accept/${invite.body.inviteToken}`)
+        .set(auth(invitee.accessToken));
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('accepted');
+      expect(res.body.collaboratorUserId).toBe(invitee.user.id);
+    });
+
+    it('is not reachable by database id (the old, IDOR-vulnerable shape is gone)', async () => {
       const invite = await request(app)
         .post('/collaborators')
         .set(auth(owner.accessToken))
@@ -103,15 +118,58 @@ describe('collaborators API', () => {
       const res = await request(app)
         .post(`/collaborators/${invite.body.id}/accept`)
         .set(auth(invitee.accessToken));
-
-      expect(res.status).toBe(200);
-      expect(res.body.status).toBe('accepted');
-      expect(res.body.collaboratorUserId).toBe(invitee.user.id);
+      expect(res.status).toBe(404);
     });
 
-    it('returns 404 for an unknown invitation', async () => {
-      const res = await request(app).post('/collaborators/no-such-id/accept').set(auth(invitee.accessToken));
+    it('returns a generic 404 for an unknown token', async () => {
+      const res = await request(app).post('/collaborators/accept/no-such-token').set(auth(invitee.accessToken));
       expect(res.status).toBe(404);
+    });
+
+    it("rejects a caller whose email doesn't match the invited email (404, IDOR)", async () => {
+      const invite = await request(app)
+        .post('/collaborators')
+        .set(auth(owner.accessToken))
+        .send({ documentId: draftId, collaboratorEmail: invitee.user.email, role: 'editor' });
+
+      const res = await request(app)
+        .post(`/collaborators/accept/${invite.body.inviteToken}`)
+        .set(auth(stranger.accessToken));
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects an expired invitation (404)', async () => {
+      const invite = await request(app)
+        .post('/collaborators')
+        .set(auth(owner.accessToken))
+        .send({ documentId: draftId, collaboratorEmail: invitee.user.email, role: 'editor' });
+
+      await prisma.documentCollaborator.update({
+        where: { id: invite.body.id },
+        data: { inviteExpiresAt: new Date(Date.now() - 1000) },
+      });
+
+      const res = await request(app)
+        .post(`/collaborators/accept/${invite.body.inviteToken}`)
+        .set(auth(invitee.accessToken));
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects re-accepting an already-accepted invitation (token reuse, 404)', async () => {
+      const invite = await request(app)
+        .post('/collaborators')
+        .set(auth(owner.accessToken))
+        .send({ documentId: draftId, collaboratorEmail: invitee.user.email, role: 'editor' });
+
+      const first = await request(app)
+        .post(`/collaborators/accept/${invite.body.inviteToken}`)
+        .set(auth(invitee.accessToken));
+      expect(first.status).toBe(200);
+
+      const second = await request(app)
+        .post(`/collaborators/accept/${invite.body.inviteToken}`)
+        .set(auth(invitee.accessToken));
+      expect(second.status).toBe(404);
     });
   });
 
