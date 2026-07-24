@@ -38,6 +38,10 @@
  */
 
 import { getDataClient } from '../demo/dataClient';
+import { isDemoMode } from '../demo/demoConfig';
+import { getStoredAuth, getApiUrl } from '../api/authClient';
+import { connect as connectRealtime } from '../api/realtimeClient';
+import type { RealtimeClient, RosterEntry } from '../api/realtimeClient';
 import type {
     UserPresence,
     PresenceStatus,
@@ -109,8 +113,12 @@ interface PresenceServiceState {
     sessionId: string;
     subscribers: Set<(presences: UserPresence[]) => void>;
     syncSubscribers: Set<(state: DocumentSyncState) => void>;
-    // AppSync subscription for real-time updates
+    // AppSync subscription for real-time updates (demo mode only)
     presenceSubscription: { unsubscribe: () => void } | null;
+    // Non-demo mode: Socket.IO connection + roster/cursor state (see realtimeClient.ts)
+    realtimeClient: RealtimeClient | null;
+    realtimeUnsubscribers: Array<() => void>;
+    livePresences: Map<string, UserPresence>;
 }
 
 const state: PresenceServiceState = {
@@ -122,6 +130,9 @@ const state: PresenceServiceState = {
     subscribers: new Set(),
     syncSubscribers: new Set(),
     presenceSubscription: null,
+    realtimeClient: null,
+    realtimeUnsubscribers: [],
+    livePresences: new Map(),
 };
 
 // ============================================
@@ -138,12 +149,16 @@ export async function joinDocument(
     userEmail?: string,
     userName?: string
 ): Promise<UserPresence | null> {
+    // Check for existing presence from this user/session
+    await leaveCurrentDocument();
+
+    if (!isDemoMode) {
+        return joinDocumentViaRealtime(documentId, documentOwnerId, userId, userEmail, userName);
+    }
+
     const client = getClient();
-    
+
     try {
-        // Check for existing presence from this user/session
-        await leaveCurrentDocument();
-        
         const now = new Date().toISOString();
         
         const presence: Omit<UserPresence, 'id'> = {
@@ -203,13 +218,137 @@ export async function joinDocument(
 }
 
 /**
+ * Convert a server-authoritative roster entry (Socket.IO realtime server)
+ * into a UserPresence, preserving the last known cursor/selection for that
+ * session across roster broadcasts (which don't carry cursor data).
+ */
+function rosterEntryToPresence(
+    entry: RosterEntry,
+    documentId: string,
+    documentOwnerId: string,
+    existing: UserPresence | undefined
+): UserPresence {
+    const now = new Date().toISOString();
+    return {
+        id: entry.sessionId,
+        documentId,
+        documentOwnerId,
+        userId: entry.userId,
+        userEmail: entry.userEmail,
+        userColor: getUserColor(entry.userId),
+        status: validateStatus(entry.status),
+        lastHeartbeat: now,
+        cursorPosition: existing?.cursorPosition ?? null,
+        selectionRange: existing?.selectionRange ?? null,
+        sessionId: entry.sessionId,
+        joinedAt: existing?.joinedAt ?? now,
+    };
+}
+
+/**
+ * Non-demo join: connect to the Socket.IO realtime server instead of the
+ * (no-op) DocumentPresence REST surface. See src/api/realtimeClient.ts and
+ * server/src/realtime.js.
+ */
+async function joinDocumentViaRealtime(
+    documentId: string,
+    documentOwnerId: string,
+    userId: string,
+    userEmail?: string,
+    userName?: string
+): Promise<UserPresence | null> {
+    const auth = getStoredAuth();
+    if (!auth) {
+        console.error('[Presence] Cannot join document: not authenticated');
+        return null;
+    }
+
+    const client = connectRealtime(getApiUrl(), auth.accessToken);
+    state.realtimeClient = client;
+    state.documentId = documentId;
+    state.currentPresenceId = state.sessionId;
+    state.livePresences.clear();
+
+    const unsubPresence = client.onPresenceUpdate((roster) => {
+        const next = new Map<string, UserPresence>();
+        for (const entry of roster) {
+            next.set(entry.sessionId, rosterEntryToPresence(entry, documentId, documentOwnerId, state.livePresences.get(entry.sessionId)));
+        }
+        state.livePresences = next;
+        state.subscribers.forEach(cb => cb(Array.from(state.livePresences.values())));
+    });
+
+    const unsubCursor = client.onCursor((event) => {
+        const existing = state.livePresences.get(event.sessionId);
+        if (!existing) return;
+        state.livePresences.set(event.sessionId, {
+            ...existing,
+            cursorPosition: event.cursorPosition,
+            selectionRange: event.selectionRange,
+        });
+        state.subscribers.forEach(cb => cb(Array.from(state.livePresences.values())));
+    });
+
+    state.realtimeUnsubscribers = [unsubPresence, unsubCursor];
+
+    client.joinDocument(documentId, userName, userEmail);
+
+    const now = new Date().toISOString();
+    return {
+        id: state.sessionId,
+        documentId,
+        documentOwnerId,
+        userId,
+        userEmail,
+        userName,
+        userColor: getUserColor(userId),
+        status: 'viewing',
+        lastHeartbeat: now,
+        cursorPosition: null,
+        selectionRange: null,
+        sessionId: state.sessionId,
+        joinedAt: now,
+    };
+}
+
+/**
+ * Shared cleanup for both demo and realtime join paths.
+ */
+function resetPresenceState(): void {
+    stopHeartbeat();
+    stopCleanup();
+    stopPresenceSubscription();
+    // Clean up status update timeout
+    if (statusUpdateTimeout) {
+        clearTimeout(statusUpdateTimeout);
+        statusUpdateTimeout = null;
+    }
+    pendingStatusUpdate = null;
+    // Clear cursor data
+    lastCursorPosition = null;
+    lastSelectionRange = null;
+    state.currentPresenceId = null;
+    state.documentId = null;
+}
+
+/**
  * Leave the current document
  */
 export async function leaveCurrentDocument(): Promise<void> {
     if (!state.currentPresenceId) return;
-    
+
+    if (!isDemoMode) {
+        state.realtimeUnsubscribers.forEach(unsub => unsub());
+        state.realtimeUnsubscribers = [];
+        state.realtimeClient?.disconnect();
+        state.realtimeClient = null;
+        state.livePresences.clear();
+        resetPresenceState();
+        return;
+    }
+
     const client = getClient();
-    
+
     try {
         await client.models.DocumentPresence.delete({
             id: state.currentPresenceId,
@@ -217,20 +356,7 @@ export async function leaveCurrentDocument(): Promise<void> {
     } catch (error) {
         console.error('Error leaving document:', error);
     } finally {
-        stopHeartbeat();
-        stopCleanup();
-        stopPresenceSubscription();
-        // Clean up status update timeout
-        if (statusUpdateTimeout) {
-            clearTimeout(statusUpdateTimeout);
-            statusUpdateTimeout = null;
-        }
-        pendingStatusUpdate = null;
-        // Clear cursor data
-        lastCursorPosition = null;
-        lastSelectionRange = null;
-        state.currentPresenceId = null;
-        state.documentId = null;
+        resetPresenceState();
     }
 }
 
@@ -288,9 +414,14 @@ export async function updateStatus(status: PresenceStatus): Promise<void> {
  */
 async function doUpdateStatus(status: PresenceStatus): Promise<void> {
     if (!state.currentPresenceId) return;
-    
+
+    if (!isDemoMode) {
+        if (state.documentId) state.realtimeClient?.sendStatus(state.documentId, status);
+        return;
+    }
+
     const client = getClient();
-    
+
     try {
         // Include cursor data to prevent it from being cleared
         const updateData: Record<string, unknown> = {
@@ -324,9 +455,14 @@ export async function updateCursor(
     // Store for status updates to include
     lastCursorPosition = position;
     lastSelectionRange = selection;
-    
+
+    if (!isDemoMode) {
+        if (state.documentId) state.realtimeClient?.sendCursor(state.documentId, position, selection);
+        return;
+    }
+
     const client = getClient();
-    
+
     try {
         await client.models.DocumentPresence.update({
             id: state.currentPresenceId,
@@ -435,8 +571,13 @@ export function getCurrentSessionId(): string {
  * Get all active presences for a document
  */
 export async function getDocumentPresences(documentId: string): Promise<UserPresence[]> {
+    if (!isDemoMode) {
+        if (state.documentId !== documentId) return [];
+        return Array.from(state.livePresences.values());
+    }
+
     const client = getClient();
-    
+
     try {
         const result = await client.models.DocumentPresence.list({
             filter: {

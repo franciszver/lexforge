@@ -79,7 +79,7 @@ export function getStoredAuth(): StoredAuth | null {
     return getAuth();
 }
 
-function getApiUrl(): string {
+export function getApiUrl(): string {
     const raw = import.meta.env.VITE_API_URL;
     return (raw ? raw : 'http://localhost:3001').replace(/\/+$/, '');
 }
