@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession } from '../demo/demoAuthClient';
 
 /**
  * Auth state slice for managing authentication status.

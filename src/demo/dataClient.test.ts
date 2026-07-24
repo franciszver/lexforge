@@ -4,7 +4,7 @@ const REAL_CLIENT_MARKER = { __real: true };
 const generateClientMock = vi.fn(() => REAL_CLIENT_MARKER);
 
 vi.mock('aws-amplify/data', () => ({
-    generateClient: (...args: unknown[]) => generateClientMock(...args),
+    generateClient: () => generateClientMock(),
 }));
 
 describe('dataClient', () => {
@@ -96,8 +96,9 @@ describe('dataClient', () => {
                 desiredOutcome: 'Settlement',
                 clientPosition: 'plaintiff',
             });
-            expect(data.success).toBe(true);
-            expect(JSON.stringify(data.outline)).toMatch(/demo/i);
+            const result = data as { success: boolean; outline?: unknown };
+            expect(result.success).toBe(true);
+            expect(JSON.stringify(result.outline)).toMatch(/demo/i);
         });
     });
 });

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { signIn, signUp, confirmSignUp, resendSignUpCode, resetPassword, confirmResetPassword, getCurrentUser } from 'aws-amplify/auth';
+import { signIn, signUp, confirmSignUp, resendSignUpCode, resetPassword, confirmResetPassword, getCurrentUser } from '../demo/demoAuthClient';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch } from '../store';
 import { setAuthenticated } from '../features/authSlice';
+import { isDemoMode } from '../demo/demoConfig';
+import { DEMO_USER } from '../demo/fixtures';
 import { FileText, ArrowLeft } from 'lucide-react';
 
 type AuthMode = 'signin' | 'signup' | 'verify' | 'forgot' | 'reset';
@@ -19,7 +21,7 @@ export const Login: React.FC = () => {
     const dispatch = useAppDispatch();
     
     const [mode, setMode] = useState<AuthMode>('signin');
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(isDemoMode ? DEMO_USER.email : '');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -392,6 +394,13 @@ export const Login: React.FC = () => {
                             {getSubtitle()}
                         </p>
                     </div>
+
+                    {/* Demo mode banner */}
+                    {isDemoMode && mode === 'signin' && (
+                        <div className="mb-4 p-3 rounded-lg text-sm bg-primary-50 text-primary-700 border border-primary-200">
+                            Demo mode — click Sign In to enter as Demo User ({DEMO_USER.email}). Any password works.
+                        </div>
+                    )}
 
                     {/* Success message */}
                     {success && (

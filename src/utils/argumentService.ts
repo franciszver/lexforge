@@ -3,8 +3,7 @@
  * Provides client-side functions for interacting with the argument generation system.
  */
 
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import { getDataClient } from '../demo/dataClient';
 import type {
     ArgumentOutline,
     ArgumentGenerationInput,
@@ -15,11 +14,11 @@ import type {
 } from './argumentTypes';
 
 // Lazy client initialization
-let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+let _client: ReturnType<typeof getDataClient> | null = null;
 
 function getClient() {
     if (!_client) {
-        _client = generateClient<Schema>();
+        _client = getDataClient();
     }
     return _client;
 }
