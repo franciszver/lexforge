@@ -4,8 +4,12 @@ import { createAuthRouter } from './auth/routes.js';
 
 const JSON_BODY_LIMIT = '1mb';
 
-export function createApp({ prisma } = {}) {
+export function createApp({ prisma, authRateLimitMax } = {}) {
   const app = express();
+
+  // Render (and most PaaS) sit behind a reverse proxy; trust the first hop
+  // so express-rate-limit sees the real client IP via X-Forwarded-For.
+  app.set('trust proxy', 1);
 
   app.use(cors());
   app.use(express.json({ limit: JSON_BODY_LIMIT }));
@@ -15,7 +19,7 @@ export function createApp({ prisma } = {}) {
   });
 
   if (prisma) {
-    app.use('/auth', createAuthRouter({ prisma }));
+    app.use('/auth', createAuthRouter({ prisma, rateLimitMax: authRateLimitMax }));
   }
 
   app.use((req, res) => {

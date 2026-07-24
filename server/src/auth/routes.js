@@ -8,12 +8,19 @@ import {
 import { hashPassword, comparePassword, DUMMY_PASSWORD_HASH } from './passwords.js';
 import { signAccessToken, signRefreshToken, verifyToken, hashRefreshToken } from './tokens.js';
 import { requireAuth } from './middleware.js';
+import { createAuthRateLimiter } from './rateLimiter.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 function publicUser(user) {
   return { id: user.id, email: user.email, name: user.name ?? null, role: user.role };
+}
+
+// Emails are case-insensitive at every boundary (register, login) so
+// 'A@B.com' and 'a@b.com' are always the same account.
+function normalizeEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : email;
 }
 
 async function issueTokens(prisma, user) {
@@ -23,11 +30,15 @@ async function issueTokens(prisma, user) {
   return { accessToken, refreshToken };
 }
 
-export function createAuthRouter({ prisma }) {
+export function createAuthRouter({ prisma, rateLimitMax }) {
   const router = Router();
+  // Shared instance: mounted on all three routes below so their request
+  // budgets are combined per IP, not counted separately.
+  const authLimiter = createAuthRateLimiter({ max: rateLimitMax });
 
-  router.post('/register', async (req, res) => {
-    const { email, password, name } = req.body || {};
+  router.post('/register', authLimiter, async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    const { password, name } = req.body || {};
 
     if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
       return res.status(400).json({ error: 'A valid email is required' });
@@ -42,14 +53,27 @@ export function createAuthRouter({ prisma }) {
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await createUser(prisma, { email, passwordHash, name });
+
+    let user;
+    try {
+      user = await createUser(prisma, { email, passwordHash, name });
+    } catch (err) {
+      // Two concurrent registers can both pass the findUserByEmail check
+      // above; the loser hits the DB's unique constraint on email instead.
+      if (err && err.code === 'P2002') {
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+      throw err;
+    }
+
     const tokens = await issueTokens(prisma, user);
 
     return res.status(201).json({ user: publicUser(user), ...tokens });
   });
 
-  router.post('/login', async (req, res) => {
-    const { email, password } = req.body || {};
+  router.post('/login', authLimiter, async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    const { password } = req.body || {};
 
     if (typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -68,7 +92,7 @@ export function createAuthRouter({ prisma }) {
     return res.status(200).json({ user: publicUser(user), ...tokens });
   });
 
-  router.post('/refresh', async (req, res) => {
+  router.post('/refresh', authLimiter, async (req, res) => {
     const { refreshToken } = req.body || {};
     if (typeof refreshToken !== 'string') {
       return res.status(401).json({ error: 'Invalid refresh token' });
