@@ -31,13 +31,14 @@ datasource db {
 // Not present in the Amplify schema (Cognito owned identity there). Added
 // for JWT-based auth against Postgres/Neon per P3.x.
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  role         String   @default("user") // 'user' | 'admin'
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String
+  name             String?
+  role             String   @default("user") // 'user' | 'admin'
+  refreshTokenHash String? // hash of the active (rotated) refresh token; null when signed out
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   drafts             Draft[]
   clauseFavorites    UserClauseFavorite[]

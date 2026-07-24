@@ -36,13 +36,23 @@ function applyOrderBy(records, orderBy) {
   return direction === 'desc' ? sorted.reverse() : sorted;
 }
 
-function createFakeModel() {
+function createFakeModel({ uniqueFields = [] } = {}) {
   const rows = new Map();
 
   return {
     _rows: rows,
 
     async create({ data }) {
+      for (const field of uniqueFields) {
+        if (data[field] === undefined) continue;
+        const clash = [...rows.values()].some((r) => r[field] === data[field]);
+        if (clash) {
+          const error = new Error(`Unique constraint failed on the fields: (\`${field}\`)`);
+          error.code = 'P2002';
+          error.meta = { target: [field] };
+          throw error;
+        }
+      }
       const now = new Date();
       const record = {
         id: data.id ?? randomUUID(),
@@ -107,7 +117,7 @@ function createFakeModel() {
 
 export function createFakePrismaClient() {
   return {
-    user: createFakeModel(),
+    user: createFakeModel({ uniqueFields: ['email'] }),
     draft: createFakeModel(),
     clause: createFakeModel(),
     userClauseFavorite: createFakeModel(),
