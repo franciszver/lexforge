@@ -1,10 +1,29 @@
 // Repository for the AuditLog aggregate.
 
+import { pick } from './pick.js';
+
+// Client-writable fields (see prisma/schema.prisma AuditLog model). Excludes
+// id and the previousHash/hash integrity fields, which must never be
+// settable by the caller.
+const WRITABLE_FIELDS = [
+  'userId',
+  'userEmail',
+  'eventType',
+  'action',
+  'resourceType',
+  'resourceId',
+  'metadata',
+  'ipAddress',
+  'userAgent',
+  'sessionId',
+  'timestamp',
+];
+
 export async function createAuditLog(prisma, data) {
   return prisma.auditLog.create({
     data: {
+      ...pick(data, WRITABLE_FIELDS),
       timestamp: data.timestamp ?? new Date(),
-      ...data,
     },
   });
 }

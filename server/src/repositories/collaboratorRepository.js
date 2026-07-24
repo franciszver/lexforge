@@ -1,10 +1,27 @@
 // Repository for the DocumentCollaborator aggregate (document sharing with
 // role-based access, mirroring src/utils/collaborationService.ts).
 
+import { pick } from './pick.js';
+
+// Client-writable fields (see prisma/schema.prisma DocumentCollaborator
+// model). Excludes id, collaboratorUserId/status/acceptedAt (set only by
+// acceptCollaboratorInvite), and revokeCollaborator's status transition.
+const WRITABLE_FIELDS = [
+  'documentId',
+  'documentOwnerId',
+  'collaboratorEmail',
+  'role',
+  'invitedBy',
+  'invitedByName',
+  'invitedAt',
+  'inviteToken',
+  'inviteExpiresAt',
+];
+
 export async function inviteCollaborator(prisma, data) {
   return prisma.documentCollaborator.create({
     data: {
-      ...data,
+      ...pick(data, WRITABLE_FIELDS),
       collaboratorEmail: data.collaboratorEmail.toLowerCase(),
       status: 'pending',
       invitedAt: data.invitedAt ?? new Date(),

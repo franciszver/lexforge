@@ -152,4 +152,21 @@ describe('collaboratorRepository', () => {
     const updated = await updateCollaboratorRole(prisma, invite.id, 'admin');
     expect(updated.role).toBe('admin');
   });
+
+  it('does not allow collaboratorUserId to be set via invite (mass assignment)', async () => {
+    const invite = await inviteCollaborator(prisma, {
+      documentId: 'doc-1',
+      documentOwnerId: 'owner-1',
+      collaboratorEmail: 'friend@example.com',
+      role: 'editor',
+      invitedBy: 'owner-1',
+      inviteToken: 'token-abc',
+      collaboratorUserId: 'attacker-id',
+    });
+
+    expect(invite.collaboratorEmail).toBe('friend@example.com');
+    expect(invite.role).toBe('editor');
+    expect(invite.inviteToken).toBe('token-abc');
+    expect(invite.collaboratorUserId).toBeFalsy();
+  });
 });
