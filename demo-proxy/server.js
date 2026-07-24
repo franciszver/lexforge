@@ -80,7 +80,7 @@ export function createApp() {
     }
 
     const { kind, prompt } = req.body;
-    const model = req.body.model || DEFAULT_MODEL;
+    const requestedModel = req.body.model || DEFAULT_MODEL;
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
@@ -88,43 +88,54 @@ export function createApp() {
       return;
     }
 
+    // Try the requested/default model first, then fail over through the rest
+    // of the allowlist — free-tier endpoints get saturated per-model, so a
+    // 429/5xx on one model often succeeds on another.
+    const candidates = [requestedModel, ...ALLOWED_MODELS.filter((m) => m !== requestedModel)];
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    let lastUpstreamStatus = null;
 
     try {
-      const upstreamRes = await fetch(OPENROUTER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPTS[kind] },
-            { role: 'user', content: prompt },
-          ],
-        }),
-        signal: controller.signal,
-      });
-
-      if (!upstreamRes.ok) {
-        res.status(502).json({
-          error: 'Upstream AI service returned an error.',
-          upstreamStatus: upstreamRes.status,
+      for (const model of candidates) {
+        const upstreamRes = await fetch(OPENROUTER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPTS[kind] },
+              { role: 'user', content: prompt },
+            ],
+          }),
+          signal: controller.signal,
         });
+
+        if (!upstreamRes.ok) {
+          lastUpstreamStatus = upstreamRes.status;
+          continue;
+        }
+
+        const data = await upstreamRes.json();
+        const text = data?.choices?.[0]?.message?.content;
+
+        if (typeof text !== 'string') {
+          lastUpstreamStatus = 200;
+          continue;
+        }
+
+        res.status(200).json({ text, model: data?.model || model });
         return;
       }
 
-      const data = await upstreamRes.json();
-      const text = data?.choices?.[0]?.message?.content;
-
-      if (typeof text !== 'string') {
-        res.status(502).json({ error: 'Upstream AI service returned an unexpected response.' });
-        return;
-      }
-
-      res.status(200).json({ text, model: data?.model || model });
+      res.status(502).json({
+        error: 'Upstream AI service returned an error.',
+        upstreamStatus: lastUpstreamStatus,
+      });
     } catch (err) {
       if (err?.name === 'AbortError') {
         res.status(504).json({ error: 'Upstream AI service timed out.' });

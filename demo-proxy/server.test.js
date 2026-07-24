@@ -123,8 +123,35 @@ describe('demo-proxy server', () => {
     expect(JSON.stringify(res.body)).not.toContain(FAKE_KEY);
   });
 
+  it('fails over to the next allowlisted model when the first is rate-limited upstream', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({ error: 'rate limited' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          model: 'nvidia/nemotron-3-super-120b-a12b:free',
+          choices: [{ message: { content: 'Failover text.' } }],
+        }),
+      });
+
+    const res = await request(app)
+      .post('/api/generate')
+      .send({ kind: 'suggestion', prompt: 'Suggest something.' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.text).toBe('Failover text.');
+    expect(res.body.model).toBe('nvidia/nemotron-3-super-120b-a12b:free');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('includes the upstream HTTP status (code only) in the 502 body for diagnosability', async () => {
-    fetchMock.mockResolvedValueOnce({
+    // Every allowlisted candidate rejects (failover exhausts the list).
+    fetchMock.mockResolvedValue({
       ok: false,
       status: 404,
       json: async () => ({ error: 'No endpoints found matching your data policy' }),
