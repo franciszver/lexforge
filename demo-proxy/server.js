@@ -109,7 +109,10 @@ export function createApp() {
       });
 
       if (!upstreamRes.ok) {
-        res.status(502).json({ error: 'Upstream AI service returned an error.' });
+        res.status(502).json({
+          error: 'Upstream AI service returned an error.',
+          upstreamStatus: upstreamRes.status,
+        });
         return;
       }
 

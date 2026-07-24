@@ -123,6 +123,23 @@ describe('demo-proxy server', () => {
     expect(JSON.stringify(res.body)).not.toContain(FAKE_KEY);
   });
 
+  it('includes the upstream HTTP status (code only) in the 502 body for diagnosability', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: 'No endpoints found matching your data policy' }),
+    });
+
+    const res = await request(app)
+      .post('/api/generate')
+      .send({ kind: 'suggestion', prompt: 'Suggest something.' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.upstreamStatus).toBe(404);
+    expect(JSON.stringify(res.body)).not.toContain('data policy');
+    expect(JSON.stringify(res.body)).not.toContain(FAKE_KEY);
+  });
+
   it('returns 504 JSON error when the upstream call times out', async () => {
     fetchMock.mockImplementationOnce(
       () =>
