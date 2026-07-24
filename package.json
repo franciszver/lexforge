@@ -14,7 +14,6 @@
     "@reduxjs/toolkit": "^2.11.1",
     "@tiptap/react": "^3.13.0",
     "@tiptap/starter-kit": "^3.13.0",
-    "aws-amplify": "^6.15.9",
     "classnames": "^2.5.1",
     "date-fns": "^3.6.0",
     "file-saver": "^2.0.5",
@@ -29,8 +28,6 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "@aws-amplify/backend": "^1.19.0",
-    "@aws-amplify/backend-cli": "^1.8.1",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.17",
     "@tailwindcss/typography": "^0.5.19",
@@ -47,8 +44,6 @@
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "^4.0.15",
     "autoprefixer": "^10.4.22",
-    "aws-cdk-lib": "^2.216.0",
-    "constructs": "^10.4.3",
     "esbuild": "^0.27.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

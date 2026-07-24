@@ -12,7 +12,7 @@ import auditReducer, {
     type AuditAction,
 } from './auditSlice';
 
-// Mock Amplify data client
+// Mock the data client
 const mockAuditLogCreate = vi.fn();
 const mockAuditLogList = vi.fn();
 const mockAuditLogListByUserId = vi.fn();

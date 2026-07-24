@@ -34,29 +34,6 @@ vi.mock('../utils/audit', () => ({
     dispatchAuditEvent: vi.fn(),
 }));
 
-// Mock Amplify
-vi.mock('aws-amplify/data', () => ({
-    generateClient: () => ({
-        models: {
-            Draft: {
-                get: vi.fn().mockResolvedValue({ data: null, errors: null }),
-                list: vi.fn().mockResolvedValue({ data: [], errors: null }),
-                create: vi.fn().mockResolvedValue({ data: null, errors: null }),
-            },
-            Template: {
-                list: vi.fn().mockResolvedValue({ data: [], errors: null }),
-            },
-        },
-    }),
-}));
-
-vi.mock('aws-amplify/auth', () => ({
-    getCurrentUser: vi.fn().mockRejectedValue(new Error('Not authenticated')),
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-}));
-
 // Mock TipTap
 vi.mock('@tiptap/react', () => ({
     useEditor: () => ({

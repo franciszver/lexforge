@@ -2,7 +2,7 @@
  * Demo Mode Fixtures
  *
  * Bundled, entirely fictional data used to make the app explorable without
- * an AWS backend. No real client, case, or personal data.
+ * a live backend. No real client, case, or personal data.
  */
 
 export const DEMO_USER = {

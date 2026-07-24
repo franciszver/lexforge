@@ -466,7 +466,7 @@ export async function updateCursor(
     try {
         await client.models.DocumentPresence.update({
             id: state.currentPresenceId,
-            // JSON fields must be stringified for Amplify Gen 2
+            // JSON fields must be stringified for storage
             cursorPosition: position ? JSON.stringify(position) : null,
             selectionRange: selection ? JSON.stringify(selection) : null,
             status: 'editing', // User is editing when cursor moves

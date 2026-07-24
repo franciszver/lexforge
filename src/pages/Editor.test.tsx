@@ -81,41 +81,6 @@ vi.mock('html-to-docx', () => ({
     default: vi.fn().mockResolvedValue(new Blob(['mock data'])),
 }));
 
-// 3. Mock Amplify data client - return document data
-const mockDocument = {
-    id: 'test-123',
-    title: 'Test Document',
-    content: '<p>Initial Content</p>',
-    status: 'draft',
-    metadata: JSON.stringify({
-        jurisdiction: 'Federal',
-        practiceArea: 'Litigation',
-        docType: 'Demand Letter',
-        opponentName: 'Test Corp',
-    }),
-    intakeData: JSON.stringify({
-        clientGoal: 'Test goal',
-    }),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-};
-
-vi.mock('aws-amplify/data', () => ({
-    generateClient: () => ({
-        models: {
-            Draft: {
-                get: vi.fn().mockResolvedValue({ data: mockDocument, errors: null }),
-                list: vi.fn().mockResolvedValue({ data: [mockDocument], errors: null }),
-                create: vi.fn().mockResolvedValue({ data: mockDocument, errors: null }),
-                update: vi.fn().mockResolvedValue({ data: mockDocument, errors: null }),
-            },
-        },
-        queries: {
-            askAI: vi.fn().mockResolvedValue({ data: { suggestions: [] }, errors: null }),
-        },
-    }),
-}));
-
 // --- SETUP ---
 
 const renderEditor = (hasDocument = true) => {

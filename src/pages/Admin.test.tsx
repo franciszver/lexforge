@@ -92,7 +92,7 @@ const mockDrafts = [
     },
 ];
 
-// Mock Amplify data client
+// Mock the data client
 const mockTemplateList = vi.fn();
 const mockTemplateCreate = vi.fn();
 const mockTemplateUpdate = vi.fn();
@@ -276,12 +276,12 @@ describe('Admin Page', () => {
             });
         });
 
-        it('shows Users section with Cognito info', async () => {
+        it('shows Users section with auth info', async () => {
             renderAdmin();
 
             await waitFor(() => {
                 expect(screen.getByRole('heading', { name: /Users/i })).toBeInTheDocument();
-                expect(screen.getByText(/User management is handled through AWS Cognito/i)).toBeInTheDocument();
+                expect(screen.getByText(/User management is handled through the server's auth system/i)).toBeInTheDocument();
             });
         });
 

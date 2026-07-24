@@ -11,36 +11,38 @@
 npm install
 ```
 
-## Amplify outputs
-
-The app imports `amplify_outputs.json` (gitignored, contains real AWS backend
-IDs) at `src/main.tsx`. A fresh clone won't have this file, so copy the
-example to get a buildable/runnable UI:
-
-```
-cp amplify_outputs.example.json amplify_outputs.json
-```
-
-PowerShell:
-
-```powershell
-Copy-Item amplify_outputs.example.json amplify_outputs.json
-```
-
-The example file has placeholder values — it's enough to build and run the
-UI, but features that call the real backend (auth, data, AI suggestions,
-etc.) won't work. To get a real backend, deploy an Amplify sandbox:
-
-```
-npx ampx sandbox
-```
-
-This generates a real `amplify_outputs.json` with live backend IDs,
-overwriting the placeholder copy.
-
 ## Build and test
 
 ```
 npm run build
 npx vitest run
+```
+
+The build and tests run out of the box in demo mode — no backend or env vars
+required.
+
+## Optional: run the server
+
+The frontend can talk to a local API server instead of demo mode. See
+`server/README.md` for details; in short:
+
+```
+cd server
+cp .env.example .env   # fill in DATABASE_URL, JWT_SECRET, OPENROUTER_API_KEY
+npm install
+npx prisma generate
+npm run dev
+```
+
+Then run the frontend against it:
+
+```
+VITE_API_URL=http://localhost:3001 npm run dev
+```
+
+### Server tests
+
+```
+cd server
+npm test
 ```

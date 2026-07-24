@@ -1,22 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const realSignIn = vi.fn();
-const realSignOut = vi.fn();
-const realGetCurrentUser = vi.fn();
-const realFetchAuthSession = vi.fn();
-
-vi.mock('aws-amplify/auth', () => ({
-    signIn: (...args: unknown[]) => realSignIn(...args),
-    signUp: vi.fn(),
-    confirmSignUp: vi.fn(),
-    resendSignUpCode: vi.fn(),
-    resetPassword: vi.fn(),
-    confirmResetPassword: vi.fn(),
-    signOut: (...args: unknown[]) => realSignOut(...args),
-    getCurrentUser: (...args: unknown[]) => realGetCurrentUser(...args),
-    fetchAuthSession: (...args: unknown[]) => realFetchAuthSession(...args),
-}));
-
 const authLogin = vi.fn();
 const authRegister = vi.fn();
 const authMe = vi.fn();
@@ -34,10 +17,6 @@ vi.mock('../api/authClient', () => ({
 describe('demoAuthClient', () => {
     beforeEach(() => {
         vi.resetModules();
-        realSignIn.mockReset();
-        realSignOut.mockReset();
-        realGetCurrentUser.mockReset();
-        realFetchAuthSession.mockReset();
     });
 
     afterEach(() => {
@@ -56,7 +35,6 @@ describe('demoAuthClient', () => {
 
             const user = await auth.getCurrentUser();
             expect(user.signInDetails?.loginId).toBe('demo@lexforge.app');
-            expect(realSignIn).not.toHaveBeenCalled();
         });
 
         it('rejects getCurrentUser before sign-in', async () => {
@@ -71,17 +49,16 @@ describe('demoAuthClient', () => {
 
             await auth.signOut();
             await expect(auth.getCurrentUser()).rejects.toThrow();
-            expect(realSignOut).not.toHaveBeenCalled();
         });
 
-        it('makes no real AWS auth calls', async () => {
+        it('makes no real server auth calls', async () => {
             const auth = await import('./demoAuthClient');
             await auth.signIn({ username: 'demo@lexforge.app', password: 'x' });
             await auth.fetchAuthSession();
             await auth.signOut();
-            expect(realSignIn).not.toHaveBeenCalled();
-            expect(realFetchAuthSession).not.toHaveBeenCalled();
-            expect(realSignOut).not.toHaveBeenCalled();
+            expect(authLogin).not.toHaveBeenCalled();
+            expect(authMe).not.toHaveBeenCalled();
+            expect(authLogout).not.toHaveBeenCalled();
         });
     });
 
@@ -107,7 +84,6 @@ describe('demoAuthClient', () => {
 
             expect(authLogin).toHaveBeenCalledWith('real@example.com', 'secret');
             expect(result.isSignedIn).toBe(true);
-            expect(realSignIn).not.toHaveBeenCalled();
         });
 
         it('signIn propagates the authClient error on failure', async () => {
@@ -147,7 +123,6 @@ describe('demoAuthClient', () => {
             expect(authMe).toHaveBeenCalled();
             expect(user.userId).toBe('u1');
             expect(user.signInDetails?.loginId).toBe('real@example.com');
-            expect(realGetCurrentUser).not.toHaveBeenCalled();
         });
 
         it('getCurrentUser propagates rejection when not authenticated', async () => {
@@ -190,7 +165,6 @@ describe('demoAuthClient', () => {
             await auth.signOut();
 
             expect(authLogout).toHaveBeenCalled();
-            expect(realSignOut).not.toHaveBeenCalled();
         });
 
         it('confirmSignUp is a no-op success (no email verification in v1)', async () => {

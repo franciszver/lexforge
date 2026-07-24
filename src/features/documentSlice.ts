@@ -3,7 +3,7 @@ import { getDataClient } from '../demo/dataClient';
 import { v4 as uuidv4 } from 'uuid';
 import { auditDocument, auditSnapshot } from '../utils/audit';
 
-// Lazy client initialization to avoid "Amplify not configured" errors
+// Lazy client initialization
 let _client: ReturnType<typeof getDataClient> | null = null;
 function getClient() {
   if (!_client) {
@@ -12,7 +12,7 @@ function getClient() {
   return _client;
 }
 
-// Helper to safely parse JSON fields from DynamoDB
+// Helper to safely parse JSON fields returned as strings
 function parseJsonField<T>(value: unknown, defaultValue: T): T {
   if (!value) return defaultValue;
   if (typeof value === 'string') {
@@ -27,7 +27,6 @@ function parseJsonField<T>(value: unknown, defaultValue: T): T {
 
 /**
  * Document management slice with full CRUD operations.
- * Now integrated with DynamoDB via Amplify Data API.
  * Supports autosave, snapshots, and share links.
  */
 
@@ -102,7 +101,6 @@ export const createDocument = createAsyncThunk(
     try {
       const now = new Date().toISOString();
       
-      // Create in DynamoDB via Amplify
       // Note: userId is required by schema but owner auth will associate the record with the user
       const { data: draft, errors } = await getClient().models.Draft.create({
         userId: '', // Required field, but owner auth takes precedence
