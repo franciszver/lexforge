@@ -110,7 +110,7 @@ function StepIndicator({ currentStep, steps }: StepIndicatorProps) {
 interface ArgumentCardProps {
     argument: Argument;
     index: number;
-    onEdit: (arg: Argument) => void;
+    onEdit?: (arg: Argument) => void;
     onDelete: (id: string) => void;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
@@ -170,13 +170,15 @@ export function ArgumentCard({
                     <span className="text-xs text-slate-500">
                         {formatConfidence(argument.confidenceScore)}
                     </span>
-                    <button
-                        onClick={() => onEdit(argument)}
-                        className="p-1.5 hover:bg-slate-200 rounded"
-                        title="Edit"
-                    >
-                        <Edit2 className="w-4 h-4" />
-                    </button>
+                    {onEdit && (
+                        <button
+                            onClick={() => onEdit(argument)}
+                            className="p-1.5 hover:bg-slate-200 rounded"
+                            title="Edit"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
                         onClick={() => onDelete(argument.id)}
                         className="p-1.5 hover:bg-red-100 text-red-600 rounded"
@@ -939,7 +941,6 @@ export function ArgumentBuilder({
                                 key={arg.id}
                                 argument={arg}
                                 index={index}
-                                onEdit={(_a) => {/* TODO: Edit modal */}}
                                 onDelete={handleDeleteArgument}
                                 onMoveUp={index > 0 ? () => handleMoveArgument(index, 'up') : undefined}
                                 onMoveDown={index < outline.arguments.length - 1 ? () => handleMoveArgument(index, 'down') : undefined}
