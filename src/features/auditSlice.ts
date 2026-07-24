@@ -194,8 +194,6 @@ export const logAuditEvent = createAsyncThunk(
                 return rejectWithValue('Failed to log audit event');
             }
 
-            console.log('Audit event logged:', eventType, action, resourceId);
-            
             // Map the response to our interface
             const entry: AuditLogEntry = {
                 id: data!.id,

@@ -306,7 +306,6 @@ async function doUpdateStatus(status: PresenceStatus): Promise<void> {
             updateData.selectionRange = lastSelectionRange ? JSON.stringify(lastSelectionRange) : null;
         }
         
-        console.log('[Presence] Updating status with cursor:', status, lastCursorPosition);
         await client.models.DocumentPresence.update(updateData as Parameters<typeof client.models.DocumentPresence.update>[0]);
     } catch (error) {
         console.error('Error updating status:', error);
@@ -330,7 +329,6 @@ export async function updateCursor(
     const client = getClient();
     
     try {
-        console.log('[Presence] Sending cursor update:', position);
         await client.models.DocumentPresence.update({
             id: state.currentPresenceId,
             // JSON fields must be stringified for Amplify Gen 2
@@ -413,10 +411,7 @@ export function presencesToCursors(presences: UserPresence[]): TipTapCursorData[
         .map(p => {
             const cursorPos = p.cursorPosition as CursorPosition | null;
             const selRange = p.selectionRange as SelectionRange | null;
-            
-            // Log for debugging cursor sync
-            console.log('[Presence] Cursor data for', p.userName || p.userEmail, ':', cursorPos);
-            
+
             return {
                 id: p.userId,
                 name: p.userName || p.userEmail || 'Anonymous',
@@ -572,22 +567,9 @@ function startPresenceSubscription(documentId: string): void {
                         return;
                     }
                     
-                    // Enhanced logging for debugging
-                    const cursorInfo = presenceData.cursorPosition 
-                        ? `cursor: ${JSON.stringify(presenceData.cursorPosition)}`
-                        : 'no cursor';
-                    console.log(`[Presence] Real-time ${eventType}:`, presenceData.userName || presenceData.userId, presenceData.status, cursorInfo);
-                    
                     // Fetch all presences and notify subscribers
                     const presences = await getDocumentPresences(documentId);
-                    
-                    // Log the full presence data including cursors
-                    console.log(`[Presence] Full presence data fetched:`, presences.map(p => ({
-                        userId: p.userId,
-                        status: p.status,
-                        cursor: p.cursorPosition,
-                    })));
-                    
+
                     // Double-check documentId hasn't changed during async operation
                     if (state.documentId === documentId) {
                         state.subscribers.forEach(cb => {
@@ -617,7 +599,6 @@ function startPresenceSubscription(documentId: string): void {
                 console.error('[Presence] Update subscription error:', error);
                 // Attempt to restart subscription on error
                 if (state.documentId === documentId) {
-                    console.log('[Presence] Attempting to restart subscription...');
                     setTimeout(() => {
                         if (state.documentId === documentId) {
                             startPresenceSubscription(documentId);
@@ -667,8 +648,6 @@ function startPresenceSubscription(documentId: string): void {
                 });
             },
         };
-        
-        console.log('[Presence] Real-time subscriptions started for document:', documentId);
     } catch (error) {
         console.error('[Presence] Failed to start subscriptions:', error);
         // Clean up any subscriptions that were created before the error
@@ -690,7 +669,6 @@ function stopPresenceSubscription(): void {
     if (state.presenceSubscription) {
         state.presenceSubscription.unsubscribe();
         state.presenceSubscription = null;
-        console.log('[Presence] Real-time subscription stopped');
     }
 }
 
