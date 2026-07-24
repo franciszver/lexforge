@@ -21,6 +21,7 @@ import {
     DEMO_ARGUMENT_OUTLINE,
     DEMO_COUNTER_ARGUMENTS,
     DEMO_COHERENCE_ANALYSIS,
+    DEMO_SUGGESTIONS,
 } from './fixtures';
 
 // ============================================
@@ -139,6 +140,9 @@ function buildDemoClient() {
     const documentSyncState = makeModel([], 'documentId');
     const documentCollaborator = makeModel([]);
     const shareLink = makeModel([]);
+    // Seeded empty: the admin Templates tab starts blank in demo mode and
+    // any templates the demo admin creates persist in-memory for the page load.
+    const template = makeModel([]);
 
     return {
         models: {
@@ -162,6 +166,7 @@ function buildDemoClient() {
             DocumentSyncState: documentSyncState,
             DocumentCollaborator: documentCollaborator,
             ShareLink: shareLink,
+            Template: template,
         },
         queries: {
             generateArguments: (args: { mode: string }) => {
@@ -176,6 +181,13 @@ function buildDemoClient() {
                     default:
                         return Promise.resolve({ data: { success: false, error: 'Unknown mode' }, errors: null });
                 }
+            },
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            askAI: (_args: { text?: string; context?: unknown }) => {
+                return Promise.resolve({
+                    data: { suggestions: DEMO_SUGGESTIONS, relevantClauses: [] },
+                    errors: null,
+                });
             },
         },
     };

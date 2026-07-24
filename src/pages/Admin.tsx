@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
-import { 
+import { getDataClient } from '../demo/dataClient';
+import {
     Plus, ArrowLeft, Edit2, Trash2, X, FileText, Users, Settings, 
     BarChart3, TrendingUp, Clock, Sparkles, FileCheck, FilePen, Activity, PieChart, Scale, Gavel
 } from 'lucide-react';
@@ -12,10 +11,10 @@ import { ArgumentBuilder } from '../components/ArgumentBuilder';
 import { DocumentFormatter } from '../components/DocumentFormatter';
 
 // Lazy client initialization to avoid "Amplify not configured" errors
-let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+let _client: ReturnType<typeof getDataClient> | null = null;
 function getClient() {
     if (!_client) {
-        _client = generateClient<Schema>();
+        _client = getDataClient();
     }
     return _client;
 }

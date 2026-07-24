@@ -311,6 +311,38 @@ export const DEMO_CITATIONS = [
 ];
 
 /**
+ * Canned AI response for the suggestions seam (askAI query). Clearly
+ * labeled as demo content — P2.3 replaces this with a proxy call to the
+ * real generate-suggestion Lambda.
+ */
+export const DEMO_SUGGESTIONS = [
+    {
+        id: 'demo-suggestion-1',
+        type: 'tone',
+        title: '[DEMO MODE] Soften the demand tone',
+        text: '[DEMO MODE] Consider opening with a collaborative tone before stating the demand, to keep settlement discussions productive.',
+        confidence: 0.81,
+        sourceRefs: ['O.C.G.A. § 51-3-1'],
+    },
+    {
+        id: 'demo-suggestion-2',
+        type: 'precision',
+        title: '[DEMO MODE] Quantify damages more precisely',
+        text: '[DEMO MODE] Break out medical expenses, future therapy, and lost wages into a clearly itemized table for the settlement demand.',
+        confidence: 0.77,
+        sourceRefs: [],
+    },
+    {
+        id: 'demo-suggestion-3',
+        type: 'source',
+        title: '[DEMO MODE] Cite premises-liability authority',
+        text: '[DEMO MODE] Strengthen the liability section with a supporting citation on the duty owed to invitees.',
+        confidence: 0.72,
+        sourceRefs: ['Robinson v. Harveston Freight Co.'],
+    },
+];
+
+/**
  * Canned AI response for the argument-generation seam.
  * Clearly labeled as demo content — P2.3 replaces this with a proxy call
  * to the real generate-argument Lambda.
