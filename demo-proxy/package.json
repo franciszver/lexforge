@@ -1,0 +1,23 @@
+{
+  "name": "lexforge-demo-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal Express proxy for LexForge demo AI calls to OpenRouter (keeps API key server-side).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8"
+  }
+}
