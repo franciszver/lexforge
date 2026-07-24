@@ -5,8 +5,7 @@
  * Supports browsing, searching, and inserting clauses into documents.
  */
 
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import { getDataClient } from '../demo/dataClient';
 import type { Clause, ClauseVariation } from './clauseTypes';
 import type { PlaceholderDefinition } from './templateTypes';
 
@@ -36,11 +35,11 @@ export interface ClauseCategory {
 // Client
 // ============================================
 
-let client: ReturnType<typeof generateClient<Schema>> | null = null;
+let client: ReturnType<typeof getDataClient> | null = null;
 
 function getClient() {
     if (!client) {
-        client = generateClient<Schema>();
+        client = getDataClient();
     }
     return client;
 }

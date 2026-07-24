@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import { getDataClient } from '../demo/dataClient';
 
 // ============================================
 // Types
@@ -87,10 +86,10 @@ const initialState: AuditState = {
 // Lazy Client Initialization
 // ============================================
 
-let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+let _client: ReturnType<typeof getDataClient> | null = null;
 function getClient() {
     if (!_client) {
-        _client = generateClient<Schema>();
+        _client = getDataClient();
     }
     return _client;
 }

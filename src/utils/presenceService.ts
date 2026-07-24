@@ -37,8 +37,7 @@
  * - DocumentVersion: Version history (RTC-3)
  */
 
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import { getDataClient } from '../demo/dataClient';
 import type {
     UserPresence,
     PresenceStatus,
@@ -90,10 +89,10 @@ function parseJsonField<T>(value: unknown): T | null {
 import { v4 as uuidv4 } from 'uuid';
 
 // Lazy client initialization
-let _client: ReturnType<typeof generateClient<Schema>> | null = null;
+let _client: ReturnType<typeof getDataClient> | null = null;
 function getClient() {
     if (!_client) {
-        _client = generateClient<Schema>();
+        _client = getDataClient();
     }
     return _client;
 }

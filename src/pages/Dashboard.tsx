@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signOut } from 'aws-amplify/auth';
+import { signOut } from '../demo/demoAuthClient';
 import { useAppDispatch, useAppSelector } from '../store';
 import { loadAllDocuments, duplicateDocument } from '../features/documentSlice';
 import { setShowNewDocModal, setShowDeleteConfirm } from '../features/uiSlice';

@@ -81,7 +81,22 @@ export function useContentSync({
     useEffect(() => {
         localVersionRef.current = localVersion;
     }, [localVersion]);
-    
+
+    // Track the latest onConflict in a ref. Callers (e.g. Editor.tsx) often
+    // pass an inline arrow function, which gets a new identity on every
+    // render. If the mount effect below depended on `onConflict` directly,
+    // any state update from inside it (setServerVersion/setLocalVersion/
+    // setServerState always receive a freshly-built object from
+    // presenceService, so they never bail out via Object.is) would
+    // re-render the caller, recreate `onConflict`, and re-trigger the
+    // effect — forever. Reading the callback from a ref keeps the effect
+    // decoupled from the caller's render identity while still always
+    // invoking the latest callback.
+    const onConflictRef = useRef(onConflict);
+    useEffect(() => {
+        onConflictRef.current = onConflict;
+    }, [onConflict]);
+
     // Initialize sync state on mount
     useEffect(() => {
         // Skip if no documentId or userId
@@ -123,16 +138,16 @@ export function useContentSync({
                 // Check if this is a conflict using ref to get current value
                 if (state.version > localVersionRef.current && state.lastModifiedBy !== userId) {
                     setHasConflict(true);
-                    onConflict?.(localVersionRef.current, state);
+                    onConflictRef.current?.(localVersionRef.current, state);
                 }
             }
         });
-        
+
         return () => {
             mounted = false;
             unsubscribe();
         };
-    }, [documentId, userId, onConflict]); // Removed localVersion from deps
+    }, [documentId, userId]); // onConflict is read from a ref (see above), not a dep
     
     // Sync content to server
     const doSync = useCallback(async (content: string, force: boolean = false): Promise<boolean> => {

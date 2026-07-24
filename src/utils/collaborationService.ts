@@ -4,8 +4,7 @@
  * Handles document sharing, collaborator invitations, and permission checks.
  */
 
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import { getDataClient } from '../demo/dataClient';
 import { v4 as uuidv4 } from 'uuid';
 
 // ============================================
@@ -51,11 +50,11 @@ export interface DocumentAccess {
 // Client
 // ============================================
 
-let client: ReturnType<typeof generateClient<Schema>> | null = null;
+let client: ReturnType<typeof getDataClient> | null = null;
 
 function getClient() {
     if (!client) {
-        client = generateClient<Schema>();
+        client = getDataClient();
     }
     return client;
 }
