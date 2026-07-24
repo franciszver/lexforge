@@ -88,4 +88,23 @@ describe('auditLogRepository', () => {
     const logs = await listAuditLogs(prisma, { limit: 1 });
     expect(logs).toHaveLength(1);
   });
+
+  it('does not allow hash/previousHash to be set via create (integrity field mass assignment)', async () => {
+    const entry = await createAuditLog(prisma, {
+      userId: 'user-1',
+      eventType: 'AUTH_LOGIN',
+      action: 'login',
+      resourceId: 'draft-1',
+      metadata: { foo: 'bar' },
+      hash: 'forged-hash',
+      previousHash: 'forged-previous-hash',
+    });
+
+    expect(entry.eventType).toBe('AUTH_LOGIN');
+    expect(entry.action).toBe('login');
+    expect(entry.resourceId).toBe('draft-1');
+    expect(entry.metadata).toEqual({ foo: 'bar' });
+    expect(entry.hash).toBeUndefined();
+    expect(entry.previousHash).toBeUndefined();
+  });
 });

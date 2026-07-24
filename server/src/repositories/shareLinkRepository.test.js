@@ -96,4 +96,23 @@ describe('shareLinkRepository', () => {
     expect(revoked.isActive).toBe(false);
     expect(revoked.revokedBy).toBe('owner-1');
   });
+
+  it('does not allow revokedBy/revokedAt to be set via create (mass assignment)', async () => {
+    const link = await createShareLink(prisma, {
+      documentId: 'doc-1',
+      documentOwnerId: 'owner-1',
+      token: 'tok-1',
+      passcode: 'ABC123',
+      accessLevel: 'view',
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+      revokedBy: 'attacker',
+      revokedAt: new Date('2020-01-01'),
+    });
+
+    expect(link.documentId).toBe('doc-1');
+    expect(link.token).toBe('tok-1');
+    expect(link.accessLevel).toBe('view');
+    expect(link.revokedBy).toBeFalsy();
+    expect(link.revokedAt).toBeFalsy();
+  });
 });
