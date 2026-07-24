@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: lexforge-demo
+    runtime: static
+    buildCommand: cp amplify_outputs.example.json amplify_outputs.json && npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_DEMO_MODE
+        value: "1"
+      - key: VITE_DEMO_PROXY_URL
+        value: https://lexforge-demo-proxy.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+  - type: web
+    name: lexforge-demo-proxy
+    runtime: node
+    plan: free
+    rootDir: demo-proxy
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGIN
+        value: https://lexforge-demo.onrender.com
