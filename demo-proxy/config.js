@@ -1,12 +1,12 @@
 // Hardcoded allowlist of OpenRouter FREE models only (ids ending ":free").
 // Requests may optionally pass a model, but it must be one of these.
-export const DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+export const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 
 export const ALLOWED_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'mistralai/mistral-7b-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'qwen/qwen-2.5-72b-instruct:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'openai/gpt-oss-20b:free',
+  'google/gemma-4-26b-a4b-it:free',
 ];
 
 export const ALLOWED_KINDS = ['argument', 'suggestion'];
