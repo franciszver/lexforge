@@ -57,4 +57,19 @@ describe('seed function', () => {
     expect(user.email).toBe('demo@lexforge.app');
     expect(user.role).toBe('user');
   });
+
+  it('should downgrade an existing demo admin user to role "user" when re-run', async () => {
+    await prisma.user.create({
+      data: {
+        email: 'demo@lexforge.app',
+        passwordHash: 'irrelevant-hash',
+        name: 'Demo User',
+        role: 'admin',
+      },
+    });
+
+    const { user } = await seed(prisma);
+
+    expect(user.role).toBe('user');
+  });
 });
