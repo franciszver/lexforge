@@ -114,8 +114,6 @@ export async function inviteCollaborator(
         throw new Error('Failed to create collaborator invitation');
     }
     
-    console.log('[Collaboration] Invited collaborator:', email, 'to document:', documentId);
-    
     return {
         id: result.data.id,
         documentId: result.data.documentId,
@@ -172,8 +170,6 @@ export async function acceptInvitation(
     if (!updated.data) {
         throw new Error('Failed to accept invitation');
     }
-    
-    console.log('[Collaboration] Accepted invitation for document:', invitation.documentId);
     
     return {
         id: updated.data.id,
@@ -275,8 +271,6 @@ export async function updateCollaboratorRole(
         id: collaboratorId,
         role: newRole,
     });
-    
-    console.log('[Collaboration] Updated collaborator role to:', newRole);
 }
 
 /**
@@ -289,8 +283,6 @@ export async function removeCollaborator(collaboratorId: string): Promise<void> 
         id: collaboratorId,
         status: 'revoked',
     });
-    
-    console.log('[Collaboration] Removed collaborator:', collaboratorId);
 }
 
 // ============================================
@@ -333,8 +325,6 @@ export async function createShareLink(
     if (!result.data) {
         throw new Error('Failed to create share link');
     }
-    
-    console.log('[Collaboration] Created share link for document:', documentId);
     
     return {
         id: result.data.id,
@@ -434,8 +424,6 @@ export async function revokeShareLink(linkId: string, revokedBy: string): Promis
         revokedAt: new Date().toISOString(),
         revokedBy,
     });
-    
-    console.log('[Collaboration] Revoked share link:', linkId);
 }
 
 // ============================================

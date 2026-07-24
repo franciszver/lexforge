@@ -156,8 +156,6 @@ export async function recordClauseUsage(clauseId: string): Promise<void> {
         usageCount: (clause.data.usageCount || 0) + 1,
         lastUsedAt: new Date().toISOString(),
     });
-    
-    console.log('[Clause] Recorded usage for clause:', clauseId);
 }
 
 /**
