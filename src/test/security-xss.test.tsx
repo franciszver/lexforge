@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import DOMPurify from 'dompurify';
 import { citationToHtml } from '../utils/citationFormatter';
 import { safeHref } from '../utils/safeHref';
+import { generatePreview } from '../utils/placeholderResolver';
 import type { Citation } from '../utils/citationTypes';
 
 // ============================================
@@ -84,6 +85,53 @@ describe('citationToHtml escapes interpolated citation fields', () => {
         const citation = createMockCitation();
         const html = citationToHtml(citation);
         expect(html).toContain('<em>Brown v. Board of Education</em>');
+    });
+});
+
+// ============================================
+// Tests: TemplateEditor preview sink (generatePreview -> DOMPurify.sanitize)
+// ============================================
+
+describe('generatePreview output is safe once sanitized (TemplateEditor preview sink)', () => {
+    it('a resolved placeholder value containing an XSS payload is stripped of onerror after sanitization', () => {
+        const preview = generatePreview(
+            'Client: {{clientName}}',
+            { clientName: '<img src=x onerror="window.__xss=1">' }
+        );
+
+        // Document that generatePreview itself does not escape/sanitize (defense-in-depth
+        // lives at the render sink, per TemplateEditor.tsx wrapping with DOMPurify.sanitize).
+        expect(preview).toContain('onerror=');
+
+        const sanitized = DOMPurify.sanitize(preview);
+        const { container } = render(
+            // eslint-disable-next-line react/no-danger
+            <div dangerouslySetInnerHTML={{ __html: sanitized }} />
+        );
+
+        expect(container.querySelector('[onerror]')).toBeNull();
+        expect(sanitized).not.toContain('onerror');
+    });
+});
+
+// ============================================
+// Tests: DocumentFormatter preview sink (join('<hr/>') -> DOMPurify.sanitize)
+// ============================================
+
+describe('DocumentFormatter preview join is safe once sanitized, and keeps <hr> separators', () => {
+    it('strips a script payload injected via the document body while preserving the <hr/> separator', () => {
+        const caption = 'IN THE SUPERIOR COURT';
+        const body = '<script>window.__xss=1</script>Body text';
+
+        const sanitized = DOMPurify.sanitize([caption, body].join('<hr/>'));
+        const { container } = render(
+            // eslint-disable-next-line react/no-danger
+            <div dangerouslySetInnerHTML={{ __html: sanitized }} />
+        );
+
+        expect(container.querySelector('script')).toBeNull();
+        expect(container.querySelector('hr')).not.toBeNull();
+        expect(container.textContent).toContain('Body text');
     });
 });
 

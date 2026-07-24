@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import {
     FileText,
     Eye,
@@ -859,11 +860,11 @@ export function DocumentFormatter({
                                     <h4 className="text-sm font-medium text-slate-700 mb-2">Document Preview</h4>
                                     <div 
                                         className="border border-slate-200 rounded-lg p-6 bg-white max-h-96 overflow-y-auto prose prose-sm"
-                                        dangerouslySetInnerHTML={{ 
-                                            __html: [
+                                        dangerouslySetInnerHTML={{
+                                            __html: DOMPurify.sanitize([
                                                 formattedDoc.caption,
                                                 formattedDoc.body.substring(0, 2000) + (formattedDoc.body.length > 2000 ? '...' : ''),
-                                            ].join('<hr/>') 
+                                            ].join('<hr/>'))
                                         }}
                                     />
                                 </div>

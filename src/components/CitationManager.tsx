@@ -39,6 +39,7 @@ import {
     getCitationTypeCounts,
 } from '../utils/citationService';
 import { buildCitationString, parseCitationString, validateCitation } from '../utils/citationFormatter';
+import { safeHref } from '../utils/safeHref';
 
 // ============================================
 // Type Icons
@@ -760,7 +761,7 @@ export function CitationManager() {
                                             <div className="flex items-center justify-end gap-1">
                                                 {citation.url && (
                                                     <a
-                                                        href={citation.url}
+                                                        href={safeHref(citation.url)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
