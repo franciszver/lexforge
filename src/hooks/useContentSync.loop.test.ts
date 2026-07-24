@@ -21,14 +21,17 @@ const getDocumentSyncStateMock = vi.fn();
 const initializeSyncStateMock = vi.fn();
 const updateSyncStateMock = vi.fn();
 const checkForConflictsMock = vi.fn();
-const subscribeToSyncStateMock = vi.fn(() => () => {});
+const subscribeToSyncStateMock = vi.fn((_callback: (state: unknown) => void) => () => {});
 
 vi.mock('../utils/presenceService', () => ({
-    getDocumentSyncState: (...args: unknown[]) => getDocumentSyncStateMock(...args),
-    initializeSyncState: (...args: unknown[]) => initializeSyncStateMock(...args),
-    updateSyncState: (...args: unknown[]) => updateSyncStateMock(...args),
-    checkForConflicts: (...args: unknown[]) => checkForConflictsMock(...args),
-    subscribeToSyncState: (...args: unknown[]) => subscribeToSyncStateMock(...args),
+    getDocumentSyncState: (documentId: string) => getDocumentSyncStateMock(documentId),
+    initializeSyncState: (documentId: string, userId: string, contentHash?: string) =>
+        initializeSyncStateMock(documentId, userId, contentHash),
+    updateSyncState: (documentId: string, userId: string, contentHash?: string) =>
+        updateSyncStateMock(documentId, userId, contentHash),
+    checkForConflicts: (documentId: string, localVersion: number) =>
+        checkForConflictsMock(documentId, localVersion),
+    subscribeToSyncState: (callback: (state: unknown) => void) => subscribeToSyncStateMock(callback),
 }));
 
 // Flush a bounded number of microtask/macrotask ticks. This intentionally
