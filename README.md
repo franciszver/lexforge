@@ -1,73 +1,71 @@
-# React + TypeScript + Vite
+# LexForge
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**AI-powered demand-letter drafting for law firms** — draft, collaborate on, and format legal demand letters with AI-assisted argument building, a reusable clause library, and court-rules-aware formatting.
 
-Currently, two official plugins are available:
+[![CI](https://github.com/franciszver/lexforge/actions/workflows/ci.yml/badge.svg)](https://github.com/franciszver/lexforge/actions/workflows/ci.yml)
+**450+ tests** · React 19 · TypeScript · AWS Amplify Gen 2
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+> **Live demo:** _coming soon_
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **AI argument builder** — generate structured legal arguments (introduction, numbered arguments, conclusion) from case facts, with AI suggestions to strengthen weak points
+- **AI clause suggestions** — context-aware clause recommendations while drafting
+- **Clause library** — reusable, categorized clauses with usage tracking and one-click insertion
+- **Citation manager** — capture, format, and insert legal citations (Bluebook-style formatting)
+- **Court-rules formatting** — brief & pleading formatting driven by a court-rules database (margins, captions, line numbering per jurisdiction)
+- **Real-time collaboration** — live cursors, selections, and presence sync across editors; document sharing with role-based invitations and revocable share links
+- **Audit logging** — every document event recorded and reportable, built for legal-compliance review
 
-## Expanding the ESLint configuration
+## Tech stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, TypeScript, Vite, Redux Toolkit, Tiptap (ProseMirror), Tailwind CSS |
+| Backend | AWS Amplify Gen 2 — Cognito (auth), AppSync GraphQL (API + real-time subscriptions), DynamoDB |
+| Serverless | 3 Lambdas: `audit-logger`, `generate-argument`, `generate-suggestion` |
+| Testing | Vitest + Testing Library — 453 tests across 23 files |
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Architecture
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+┌─────────────────────────────────────────────┐
+│  React SPA (Vite + Redux Toolkit + Tiptap)  │
+│  editor · clause library · citations · args │
+└──────────────┬──────────────────────────────┘
+               │ Amplify client
+   ┌───────────┼─────────────────┐
+   ▼           ▼                 ▼
+┌────────┐ ┌──────────────┐ ┌─────────────────┐
+│Cognito │ │AppSync GraphQL│ │ Lambdas         │
+│ auth   │ │ + real-time  │ │ audit-logger    │
+└────────┘ │ subscriptions │ │ generate-arg    │
+           └──────┬───────┘ │ generate-suggest│
+                  ▼          └─────────────────┘
+             ┌─────────┐
+             │DynamoDB │
+             └─────────┘
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Real-time collaboration rides AppSync subscriptions: presence and cursor updates are throttled client-side and fanned out to all sessions on a document.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Local setup
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone https://github.com/franciszver/lexforge.git
+cd lexforge
+npm install
+cp amplify_outputs.example.json amplify_outputs.json   # placeholder backend config
+npm run dev
 ```
+
+The placeholder config is enough to build and explore the UI. For a live backend (auth, data, AI), deploy an Amplify sandbox — `npx ampx sandbox` — which regenerates `amplify_outputs.json` with real resource IDs. Details in [docs/SETUP.md](docs/SETUP.md).
+
+```bash
+npx vitest run   # 450+ tests
+npm run build    # production build
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
