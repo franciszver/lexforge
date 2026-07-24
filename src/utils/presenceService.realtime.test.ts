@@ -119,6 +119,30 @@ describe('presenceService (non-demo, realtime)', () => {
         expect(mockClient.sendCursor).toHaveBeenLastCalledWith('doc-1', { line: 0, column: 15 }, null);
     });
 
+    it('merges incoming presence:cursor events into subscriber updates', async () => {
+        await joinDocument('doc-1', 'owner-1', 'user-1');
+
+        presenceCallback?.([
+            { sessionId: 's1', userId: 'user-1', userEmail: 'user1@example.com', status: 'viewing' },
+            { sessionId: 's2', userId: 'user-2', userEmail: 'user2@example.com', status: 'editing' },
+        ]);
+
+        const cb = vi.fn();
+        subscribeToPresences(cb);
+
+        cursorCallback?.({
+            sessionId: 's2',
+            userId: 'user-2',
+            cursorPosition: { line: 0, column: 7 },
+            selectionRange: null,
+        });
+
+        expect(cb).toHaveBeenCalledTimes(1);
+        const presences = cb.mock.calls[0][0];
+        const remote = presences.find((p: { sessionId: string }) => p.sessionId === 's2');
+        expect(remote.cursorPosition).toEqual({ line: 0, column: 7 });
+    });
+
     it('forwards status updates through sendStatus', async () => {
         await joinDocument('doc-1', 'owner-1', 'user-1');
 
